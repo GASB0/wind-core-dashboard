@@ -5,17 +5,16 @@ app = Dash(__name__, use_pages=True)
 
 app.layout = html.Div(children=[
     html.Div(className='navBar', children=[
-        html.Div(
+        html.Div(className='navLink', children=[
             dcc.Link(
-                f"{page['name']} - {page['name']}", href=page["relative_path"]
+                f"{page['name']}", href=page["relative_path"]
                 )
-            )
+            ])
             for page in dash.page_registry.values()
      ]   
     ),
     dash.page_container
 ])
-
 
 
 if __name__ == '__main__':
