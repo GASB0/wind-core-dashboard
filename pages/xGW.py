@@ -1,27 +1,35 @@
 import dash
-import json
+import os
 import datetime
 from dash import html
 import pandas as pd
+import plotly
 
 # Cargado del dataframe de donde se va a sacar la data
-def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=7), end_date=datetime.datetime.today()) -> pd.DataFrame:
-        """
-        TODO: Termina de implementarme.
-        Esta funcion hace un query hacia la base de datos para obtener la data que se encuentra dentro del 
-        rango de fechas especificado
-        """
-        df = pd.read_csv('assets/KPI Warehouse - xGW_10857_202211290500.csv')
-        df['Start Time'] = pd.to_datetime(df['Start Time'])
-        return df[df['Start Time'] > start_date][df['Start Time'] < end_date]
+def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=10), end_date=datetime.datetime.today()) -> pd.DataFrame:
+    """
+    TODO: Termina de implementarme.
+    Esta funcion hace un query hacia la base de datos para obtener la data que se encuentra dentro del 
+    rango de fechas especificado
+    """
+    root = 'assets/data/'
+    dfs = []
+    for _, _, names in os.walk(root):
+        for name in names:
+            path = root+name
+            dfs.append(pd.read_csv(path))
+
+    df = pd.concat(dfs, ignore_index=True)
+    df['Start Time'] = pd.to_datetime(df['Start Time'])
+    df['IP Pool Usage(%)'] = df['IP Pool Usage(%)'].str.rstrip('%').astype(float)
+    return df[df['Start Time'] > start_date][df['Start Time'] < end_date]
 
 kpiDF = queryDataFromDB()
 
 dash.register_page(__name__)
 
 layout = html.Div(children=[
-    html.H1(children='This is our Home page'),
-    html.Div(children=""" This is our home page. """),
+    html.H1(children='xGW Page'),
     dash.dcc.Tabs(id="xGW-tabs", value='advancedView', children=[
         dash.dcc.Tab(label='Basic view', value='basicView', children=[
             dash.html.Div(id='basicTab',children=[
@@ -73,11 +81,13 @@ layout = html.Div(children=[
                                 'layout': {'margin':{'t':50, 'r':0}}
                                 })
                         ]),
+                    dash.html.Label('Statistical information'),
+                    dash.dcc.Checklist(options=['variance'], id='metricsCheckList', value=[]),
+                    dash.html.Br(),
                     dash.html.Label('KPIs to be selected'),
-                    dash.dcc.Dropdown(options=kpiDF.columns[5:], value=[kpiDF.columns[6]], multi=True, id='kpiSelector', placeholder="Select a KPI",),
+                    dash.dcc.Dropdown(options=kpiDF.columns[5:], value=[kpiDF.columns[7]], multi=True, id='kpiSelector', placeholder="Select a KPI"),
                     ]),
                 html.Div(id='statsContainer'),
-                html.Div(id='testContainer'),
                 ]),
             ]),
         ]),
@@ -89,46 +99,56 @@ layout = html.Div(children=[
         dash.Output('advancedTabGraph', 'figure'),
         dash.Input('dateRange', 'start_date'),
         dash.Input('dateRange', 'end_date'),
-        dash.Input('advancedTabGraph', 'figure'),
+        dash.Input('kpiSelector', 'value'),
+        dash.Input('metricsCheckList', 'value')
         )
-def dateChange_cb(start_date, end_date, figure):
+def dateChange_cb(start_date, end_date, selector, checklistOptions):
     kpiDF = queryDataFromDB(start_date, end_date)
-    for ind, _ in enumerate(figure['data']):
-        figure['data'][ind]['x'] = kpiDF['Start Time'].unique()
-    return figure
+    fig = plotly.graph_objs.Figure()
+
+    if len(selector) > 0:
+        for _, value in enumerate(selector):
+            meanSeries = kpiDF.groupby([kpiDF['Start Time'].dt.date])[value].mean()
+            varianceSeries = kpiDF.groupby([kpiDF['Start Time'].dt.date])[value].var()
+            df = pd.DataFrame({'Start Time':meanSeries.index, meanSeries.name: meanSeries.values, 'variance': varianceSeries.values})
+            
+            fig.add_trace(
+                    plotly.graph_objs.Scatter(
+                        x=df['Start Time'],
+                        y=df[value],
+                        error_y=dict(
+                            type='data',
+                            array=df['variance'],
+                            visible=True) if 'variance' in checklistOptions else None
+                        )
+                    )
+    return fig
 
 # Refrescado del grafico secundario
 @dash.callback(
         dash.Output('dailyGraph', 'figure'),
         dash.Input('advancedTabGraph', 'clickData'),
-        dash.Input('dailyGraph', 'figure'),
-        dash.Input('dateRange', 'start_date'),
-        dash.Input('dateRange', 'end_date'),
+        dash.Input('advancedTabGraph', 'figure'),
         dash.Input('kpiSelector', 'value'),
         )
-def clicked_datapoint_cb(clickData, figure, start_date, end_date, selector):
-    triggeringCB = dash.callback_context.triggered_id
+def clicked_datapoint_cb(clickData, aggFigure, selector):
+    triggeringCB = dash.callback_context.triggered_prop_ids
+    fig = plotly.graph_objs.Figure()
 
-    # Limpiando el grafico
-    for ind, value in enumerate(figure['data']):
-        figure['data'][ind]['x'] = []
-        figure['data'][ind]['y'] = []
-        figure['data'][ind]['type'] = 'line'
+    try:
+        if list(triggeringCB.keys())[0] == 'advancedTabGraph.clickData':
+            dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
+        else:
+            dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
+    except IndexError:
+        return fig
 
-    # Revisando de donde es que se activa el callback
-    if triggeringCB == 'advancedTabGraph':
-        xdate = pd.to_datetime(clickData['points'][0]['x']).date()
-        figure['layout']['title'] = f"Statistics of {xdate}"
-    else:
-        xdate = pd.to_datetime(end_date).date() - datetime.timedelta(days=1)
-        figure['layout']['title'] = f"Statistics of {end_date}"
+    if selector:
+        filteredDF = kpiDF[ kpiDF['Start Time'].apply(lambda x: pd.to_datetime(x).date()) == dateToInspect]
+        for _, value in enumerate(selector):
+            fig.add_trace(plotly.graph_objs.Scatter(
+                x=filteredDF['Start Time'],
+                y=filteredDF[value],
+                ))
 
-    # Dibujado de la nueva grafica
-    newXAxis = kpiDF[kpiDF['Start Time'].apply(lambda row: row.date()) == xdate]['Start Time']
-    for ind, value in enumerate(selector):
-        newYAxis = kpiDF[kpiDF['Start Time'].apply(lambda row: row.date()) == xdate][value]
-        figure['data'][ind]['x'] = list(newXAxis)
-        figure['data'][ind]['y'] = list(newYAxis)
-        figure['data'][ind]['type'] = 'line'
-
-    return figure
+    return fig
