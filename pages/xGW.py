@@ -152,3 +152,54 @@ def clicked_datapoint_cb(clickData, aggFigure, selector):
                 ))
 
     return fig
+
+# Refrescando los graficos de las tarjetas del basic view
+@dash.callback(
+        dash.Output('daily_cpu_usage', 'figure'),
+        dash.Input('daily_cpu_usage', 'figure'),
+        )
+def basicCPUCB(_):
+    kpiName = 'Peak load of CPU usage of the main processor(%)'
+    fig = plotly.graph_objs.Figure()
+    lastWeekMeanSeries = thisWeekKPIs.groupby([thisWeekKPIs['Start Time'].dt.date])[kpiName].mean()
+    df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
+    
+    fig.add_trace(
+        plotly.graph_objs.Scatter(
+            x=df['Start Time'],
+            y=df[lastWeekMeanSeries.name],
+            )
+        )
+
+    return fig
+
+# Callback de la carta de IP usage
+@dash.callback(
+        dash.Output('daily_ip_usage', 'figure'),
+        dash.Output('kpiSelector', 'value'),
+        dash.Output('xGW-tabs', 'value'),
+        dash.Input('daily_ip_usage', 'figure'),
+        dash.Input('daily_ip_usage', 'clickData'),
+        dash.State('xGW-tabs', 'value'),
+        )
+def basicIPCB(_, __, tabSelected):
+    triggeringCB = dash.callback_context.triggered_prop_ids
+    kpiName = 'IP Pool Usage(%)'
+
+    fig = plotly.graph_objs.Figure()
+    lastWeekMeanSeries = thisWeekKPIs.groupby([thisWeekKPIs['Start Time'].dt.date])[kpiName].mean()
+    df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
+    
+    fig.add_trace(
+        plotly.graph_objs.Scatter(
+            x=df['Start Time'],
+            y=df[lastWeekMeanSeries.name],
+            )
+        )
+
+    if len(triggeringCB.keys()) and (list(triggeringCB.keys())[0] == 'daily_ip_usage.clickData'):
+        print(triggeringCB.keys())
+        print(tabSelected)
+        return fig, [kpiName], 'advancedView'
+
+    return fig, [kpiName], tabSelected
