@@ -5,8 +5,32 @@ from dash import html
 import pandas as pd
 import plotly
 
+# Generador de callbacks para click sobre tarjetas
+def basicViewGraphCBGenerator(kpiName, eventName):
+    def callback(_,__):
+        triggeringCB = dash.callback_context.triggered_prop_ids
+
+        fig = plotly.graph_objs.Figure()
+        lastWeekMeanSeries = thisWeekKPIs.groupby([thisWeekKPIs['Start Time'].dt.date])[kpiName].mean()
+        df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
+        
+        fig.add_trace(
+            plotly.graph_objs.Scatter(
+                x=df['Start Time'],
+                y=df[lastWeekMeanSeries.name],
+                )
+            )
+
+        if len(triggeringCB.keys()) and (list(triggeringCB.keys())[0] == eventName):
+            print(triggeringCB.keys())
+            return fig
+
+        return fig
+
+    return callback
+
 # Cargado del dataframe de donde se va a sacar la data
-def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=10), end_date=datetime.datetime.today()) -> pd.DataFrame:
+def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=15), end_date=datetime.datetime.today()) -> pd.DataFrame:
     """
     TODO: Termina de implementarme.
     Esta funcion hace un query hacia la base de datos para obtener la data que se encuentra dentro del 
@@ -26,11 +50,13 @@ def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(da
 
 kpiDF = queryDataFromDB()
 
+thisWeekKPIs = kpiDF.copy(deep=True)
+
 dash.register_page(__name__)
 
 layout = html.Div(children=[
     html.H1(children='xGW Page'),
-    dash.dcc.Tabs(id="xGW-tabs", value='advancedView', children=[
+    dash.dcc.Tabs(id="xGW-tabs", value='basicView', children=[
         dash.dcc.Tab(label='Basic view', value='basicView', children=[
             dash.html.Div(id='basicTab',children=[
                 dash.html.Div(className='card_container', children=[
@@ -51,7 +77,7 @@ layout = html.Div(children=[
                     ])
                 ])
             ]),
-        dash.dcc.Tab(label='Advanced view', value='advancedView', children=[
+        dash.dcc.Tab(label='Advanced view', value='advancedView', id='advancedTabGraphTab',children=[
             html.Div(id='advancedTab', children=[
                 html.Div(children=[
                     dash.dcc.DatePickerRange(
@@ -128,7 +154,7 @@ def dateChange_cb(start_date, end_date, selector, checklistOptions):
 @dash.callback(
         dash.Output('dailyGraph', 'figure'),
         dash.Input('advancedTabGraph', 'clickData'),
-        dash.Input('advancedTabGraph', 'figure'),
+        dash.State('advancedTabGraph', 'figure'),
         dash.Input('kpiSelector', 'value'),
         )
 def clicked_datapoint_cb(clickData, aggFigure, selector):
@@ -140,7 +166,7 @@ def clicked_datapoint_cb(clickData, aggFigure, selector):
             dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
         else:
             dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
-    except IndexError:
+    except:
         return fig
 
     if selector:
@@ -155,51 +181,50 @@ def clicked_datapoint_cb(clickData, aggFigure, selector):
 
 # Refrescando los graficos de las tarjetas del basic view
 @dash.callback(
-        dash.Output('daily_cpu_usage', 'figure'),
-        dash.Input('daily_cpu_usage', 'figure'),
-        )
-def basicCPUCB(_):
-    kpiName = 'Peak load of CPU usage of the main processor(%)'
-    fig = plotly.graph_objs.Figure()
-    lastWeekMeanSeries = thisWeekKPIs.groupby([thisWeekKPIs['Start Time'].dt.date])[kpiName].mean()
-    df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
-    
-    fig.add_trace(
-        plotly.graph_objs.Scatter(
-            x=df['Start Time'],
-            y=df[lastWeekMeanSeries.name],
-            )
-        )
-
-    return fig
-
-# Callback de la carta de IP usage
-@dash.callback(
-        dash.Output('daily_ip_usage', 'figure'),
-        dash.Output('kpiSelector', 'value'),
         dash.Output('xGW-tabs', 'value'),
-        dash.Input('daily_ip_usage', 'figure'),
         dash.Input('daily_ip_usage', 'clickData'),
+        dash.Input('daily_cpu_usage', 'clickData'),
         dash.State('xGW-tabs', 'value'),
         )
-def basicIPCB(_, __, tabSelected):
-    triggeringCB = dash.callback_context.triggered_prop_ids
-    kpiName = 'IP Pool Usage(%)'
+def tabSwitcherCB(_var1,_var2, _var3):
+    triggeringCB = list(dash.callback_context.triggered_prop_ids.keys())
+    if len(triggeringCB) > 0:
+        triggeringCB = triggeringCB[0]
 
-    fig = plotly.graph_objs.Figure()
-    lastWeekMeanSeries = thisWeekKPIs.groupby([thisWeekKPIs['Start Time'].dt.date])[kpiName].mean()
-    df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
-    
-    fig.add_trace(
-        plotly.graph_objs.Scatter(
-            x=df['Start Time'],
-            y=df[lastWeekMeanSeries.name],
-            )
+    if triggeringCB == 'daily_cpu_usage.clickData':
+        return 'advancedView'
+    elif triggeringCB == 'daily_ip_usage.clickData':
+        return 'advancedView'
+    else:
+        return _var3
+
+@dash.callback(
+        dash.Output('kpiSelector', 'value'),
+        dash.Input('daily_ip_usage', 'clickData'),
+        dash.Input('daily_cpu_usage', 'clickData'),
+        dash.State('kpiSelector', 'value'),
         )
+def kpiSelectorCB(_var1,_var2, _var3):
+    triggeringCB = list(dash.callback_context.triggered_prop_ids.keys())
+    if len(triggeringCB) > 0:
+        triggeringCB = triggeringCB[0]
 
-    if len(triggeringCB.keys()) and (list(triggeringCB.keys())[0] == 'daily_ip_usage.clickData'):
-        print(triggeringCB.keys())
-        print(tabSelected)
-        return fig, [kpiName], 'advancedView'
+    if triggeringCB == 'daily_cpu_usage.clickData':
+        return ['Peak load of CPU usage of the main processor(%)']
+    elif triggeringCB == 'daily_ip_usage.clickData':
+        return ['IP Pool Usage(%)']
+    else:
+        return _var3
 
-    return fig, [kpiName], tabSelected
+# Callback para los graficos de las cartas
+dash.callback(
+                dash.Output('daily_ip_usage', 'figure'),
+                dash.Input('daily_ip_usage', 'figure'),
+                dash.Input('daily_ip_usage', 'clickData'),
+                )(basicViewGraphCBGenerator('IP Pool Usage(%)', 'daily_ip_usage.clickData'))
+
+dash.callback(
+                dash.Output('daily_cpu_usage', 'figure'),
+                dash.Input('daily_cpu_usage', 'figure'),
+                dash.Input('daily_cpu_usage', 'clickData'),
+                )(basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage.clickData'))
