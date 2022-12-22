@@ -18,22 +18,24 @@ def basicViewGraphCBGenerator(kpiName, eventName):
         df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
 
         fig.update_layout(
-            title={
-                'text':kpiName if kpiName else "",
-                'font':{'size':10}
-                },
             autosize=False,
-            width=300,
-            height=300,
-            margin={'t':50, 'r':10, 'l':10, 'autoexpand':True,},
+            width=400,
+            height=200,
+            margin={'t':0, 'r':10, 'l':10, 'autoexpand':True,},
             xaxis={'fixedrange':True},
             yaxis={'fixedrange':True},
         )
+
+        stdSeries = kpiDF.groupby([thisWeekKPIs['Start Time'].dt.date])[lastWeekMeanSeries.name].std()
 
         fig.add_trace(
             plotly.graph_objs.Scatter(
                 x=df['Start Time'],
                 y=df[lastWeekMeanSeries.name],
+                error_y=dict(
+                    type='data',
+                    array=stdSeries,
+                    visible=True)
                 )
             )
 
@@ -69,8 +71,7 @@ kpiDF = queryDataFromDB()
 thisWeekKPIs = kpiDF.copy(deep=True)
 
 # Implementacion del grafico de las cargas pico de CPU y sus duraciones:
-strList = list[str]
-def figCombinator(columns: strList, argDF:pd.DataFrame=None)->dash.dcc.Graph:
+def figCombinator(columns, argDF:pd.DataFrame=None)->dash.dcc.Graph:
     if len(columns) > 1:
         fig = px.scatter(argDF, x="Start Time", y=columns[0], color=columns[1],
                          title=columns[0], width=1000, height=500)
@@ -78,6 +79,7 @@ def figCombinator(columns: strList, argDF:pd.DataFrame=None)->dash.dcc.Graph:
                 colorbar_title={
                     'side':'right'
                     })
+        fig.add_traces(plotly.graph_objs.Scatter(x=argDF["Start Time"], y=argDF[columns[0]], mode='line'))
     else:
         fig = px.scatter(argDF, x="Start Time", y=columns[0],
                          title=columns[0], width=1000, height=500)
@@ -95,76 +97,91 @@ layout = html.Div(children=[
             dash.html.Div(id='basicTab',children=[
                 dash.html.Div(className='card_container', children=[
                     dash.html.Div(id='cpu_card',className='infoCard', children=[
-                        dash.html.H3('CPU Usage'),
-                        dash.html.H4('Latest measurement'),
+                        dash.html.H3('CPU Usage (latest measurements)'),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
-                                daq.Gauge(
-                                    color={"gradient":True, "ranges":{"green":[0,4], "yellow":[4,8], "red": [8,10]}},
-                                    value=thisWeekKPIs['Mean ratio of the CPU usage of the main processor(%)'].iloc[-1],
-                                    label={'label':'Latest mean ratio of the CPU usage of the main processor(%)', 'style':{'font-size':'10px'}},
-                                    max=10,  # TODO: Averiguar cual es el máximo de este KPI
-                                    min=0,
-                                    size=150,
-                                    ),
-                                daq.Gauge(
-                                    color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                    value=thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[-1],
-                                    label={'label':'Latest peak load of CPU usage of the main processor(%)', 'style':{'font-size':'10px'}},
-                                    units='%',
-                                    max=100,  # TODO: Averiguar cual es el máximo de este KPI
-                                    min=0,
-                                    size=150,
-                                    ),
+                                dash.html.Div(children=[
+                                    dash.html.H6('Mean ratio of the CPU usage of the main processor(%)'),
+                                    daq.Gauge(
+                                        color={"gradient":True, "ranges":{"green":[0,4], "yellow":[4,8], "red": [8,10]}},
+                                        value=thisWeekKPIs['Mean ratio of the CPU usage of the main processor(%)'].iloc[-1],
+                                        max=10,  # TODO: Averiguar cual es el máximo de este KPI
+                                        min=0,
+                                        size=100,
+                                        ),
+                                ], className='gaugeDiv'),
+                                dash.html.Div(children=[
+                                    dash.html.H6('Peak load of CPU usage of the main processor(%)'),
+                                    daq.Gauge(
+                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
+                                        value=thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[-1],
+                                        units='%',
+                                        max=100,  # TODO: Averiguar cual es el máximo de este KPI
+                                        min=0,
+                                        size=100,
+                                        ),
+                                ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
-
                             dash.html.Div(children=[
-                                dash.html.H5('Longest duration of CPU Peak'),
-                                dash.html.P(str(thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].max())+' secs'),
-                                dash.html.P('at '+str(thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].argmax()])+"%"),
-                                ], className='dataCard')
+                                dash.html.H5('CPU peak load duration'),
+                                dbc.ListGroup(children=[
+                                    dbc.ListGroupItem('Longest duration of CPU Peak: '+ str(thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].max())+' secs'),
+                                    dbc.ListGroupItem('Percentage of longest duration: '+str(thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].argmax()])+"%")
+                                ]),
+                            ]),
+                            dash.html.Br(),
+                            dash.html.Div(children=[
+                                dash.html.H5('Peak load of CPU(%) (weekley summary)'),
+                                dash.dcc.Graph(id='daily_cpu_usage', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
+                            ], className='figureContainer')
+
                             ], className='infoCardDataContainer')
                     ]),
 
-                    dash.html.Div(id='ip_pool_usage', className='infoCard', children=[
-                        dash.html.H3('IP Usage'),
-                        dash.html.H4('Latest measurement'),
 
+                    dash.html.Div(id='ip_card',className='infoCard', children=[
+                        dash.html.H3('IP Usage'),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
-                                daq.Gauge(
-                                    color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                    value=thisWeekKPIs['IP Pool Usage(%)'].iloc[-1],
-                                    label={'label':'IP Pool Usage(%)', 'style':{'font-size':'30px'}},
-                                    max=100,  # TODO: Averiguar cual es el máximo de este KPI
-                                    min=0,
-                                    size=150,
-                                    ),
-                                ], className='progressDiv'),
-
+                                dash.html.Div(children=[
+                                    dash.html.H6('IP Pool Usage(%)'),
+                                    daq.Gauge(
+                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
+                                        value=thisWeekKPIs['IP Pool Usage(%)'].iloc[-1],
+                                        max=100,  # TODO: Averiguar cual es el máximo de este KPI
+                                        min=0,
+                                        size=100,
+                                        ),
+                                ], className='gaugeDiv'),
+                                # dash.html.Div(children=[
+                                #     dash.html.H6('Latest peak load of CPU usage of the main processor(%)'),
+                                #     daq.Gauge(
+                                #         color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
+                                #         value=thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[-1],
+                                #         units='%',
+                                #         max=100,  # TODO: Averiguar cual es el máximo de este KPI
+                                #         min=0,
+                                #         size=100,
+                                #         ),
+                                # ], className='gaugeDiv'),
+                                ], className='gaugeContainer'),
                             dash.html.Div(children=[
-                                dash.html.Div(children=[
-                                    dash.html.H5('Total number of IP addresses in the PGW IP pool'),
-                                    dash.html.P(str(thisWeekKPIs['Total number of IP addresses in the PGW IP pool'].mean())),
-                                    dash.html.P('Δ'+str(thisWeekKPIs['Total number of IP addresses in the PGW IP pool'].std())),
-                                    # dash.html.P('∇')
-                                    ], className='dataCard'),
-                                dash.html.Div(children=[
-                                    dash.html.H5('Total number of IP addresses in the PGW IP pool'),
-                                    dash.html.P(str(round(thisWeekKPIs['Number of assigned IP addresses in the PGW IP pool'].mean(), 2))),
-                                    dash.html.P('Δ'+str(round(thisWeekKPIs['Number of assigned IP addresses in the PGW IP pool'].std(),2))),
-                                    ], className='dataCard')
-                                ], className='cardContainer')
+                                dash.html.H5('Asigned IP addresses in the PGW'),
+                                dbc.ListGroup(children=[
+                                    dbc.ListGroupItem('Number of assigned IP addresses in the PGW IP pool: '+ str(thisWeekKPIs['Number of assigned IP addresses in the PGW IP pool'].max())),
+                                    # dbc.ListGroupItem('Percentage of longest duration: '+str(thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].argmax()])+"%")
+                                ]),
+                            ]),
+                            dash.html.Br(),
+                            dash.html.Div(children=[
+                                dash.html.H5('IP Pool Usage% (weekley summary)'),
+                                dash.dcc.Graph(id='daily_ip_usage', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
+                            ], className='figureContainer')
+
                             ], className='infoCardDataContainer')
-                        ]),
                     ]),
-                    dash.html.Br(),
-                    dash.html.Br(),
-                    dash.html.H2('Latest week statistics'),
-                    figCombinator(['Peak load of CPU usage of the main processor(%)','Duration of peak load of CPU usage of the main processor(s)'], thisWeekKPIs),
-                    figCombinator(['Mean ratio of the CPU usage of the main processor(%)'], thisWeekKPIs),
-                    figCombinator(['IP Pool Usage(%)', 'Number of assigned IP addresses in the PGW IP pool'], thisWeekKPIs),
-                    figCombinator(['Total number of IP addresses in the PGW IP pool'], thisWeekKPIs),
+
+                    ]),
                 ])
             ]),
         dash.dcc.Tab(label='Advanced view', value='advancedView', id='advancedTabGraphTab',children=[
@@ -285,3 +302,16 @@ def clicked_datapoint_cb(clickData, aggFigure, selector):
                 ))
 
     return fig
+
+# Callbacks para los graficos de las cartas
+dash.callback(
+                dash.Output('daily_cpu_usage', 'figure'),
+                dash.Input('daily_cpu_usage', 'figure'),
+                dash.Input('daily_cpu_usage', 'clickData'),
+                )(basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage.clickData'))
+
+dash.callback(
+                dash.Output('daily_ip_usage', 'figure'),
+                dash.Input('daily_ip_usage', 'figure'),
+                dash.Input('daily_ip_usage', 'clickData'),
+                )(basicViewGraphCBGenerator('IP Pool Usage(%)', 'daily_ip_usage.clickData'))
