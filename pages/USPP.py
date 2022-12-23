@@ -96,17 +96,34 @@ layout = html.Div(children=[
                     
                     dash.html.Div(id='crm_operation_card',className='infoCard', children=[
                         dash.html.H3('CRM Operation'),
-                        dash.html.H4('Daily Average'), 
-                        daq.Gauge(
-                            color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                            value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
-                            showCurrentValue=True,
-                            units="%",
-                            label='CRM Operation Success (%)',
-                            max=100,
-                            min=0,
-                            size=200,
-                        ),
+                        dash.html.H4('Daily Average'),
+                        dash.html.Div(children=[
+                            dash.html.Div(children=[
+                                daq.Gauge(
+                                    color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                    value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
+                                    showCurrentValue=True,
+                                    units="%",
+                                    label='CRM Operation Success (%)',
+                                    max=100,
+                                    min=0,
+                                    size=200,
+                                ),
+                            ], className='gaugeDiv'),
+                            dash.html.Div(children=[
+                                daq.Gauge(
+                                    color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                    value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
+                                    showCurrentValue=True,
+                                    units="%",
+                                    label='CRM Operation Success (%)',
+                                    max=100,
+                                    min=0,
+                                    size=200,
+                                ),
+                            ], className='gaugeDiv'),
+                        ], className='gaugeContainer'),
+                        
                     ]),
 
                     dash.html.Div(id='spr_subs', className='infoCard', children=[
