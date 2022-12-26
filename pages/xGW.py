@@ -1,92 +1,18 @@
 import dash
+import sys
 import dash_daq as daq
 import dash_bootstrap_components as dbc
-import os
 import datetime
 from dash import html
 import pandas as pd
 import plotly
-import plotly.express as px
 
-# Generador de callbacks para click sobre tarjetas
-def basicViewGraphCBGenerator(kpiName, eventName):
-    def callback(_,__):
-        triggeringCB = dash.callback_context.triggered_prop_ids
+sys.path.insert(1,'/home/gabriel/Documents/Projects/wind_dashboard/pages')
+import utilidadesVarias as uv
 
-        fig = plotly.graph_objs.Figure()
-        lastWeekMeanSeries = thisWeekKPIs.groupby([thisWeekKPIs['Start Time'].dt.date])[kpiName].mean()
-        df = pd.DataFrame({'Start Time':lastWeekMeanSeries.index, lastWeekMeanSeries.name: lastWeekMeanSeries.values})
-
-        fig.update_layout(
-            autosize=False,
-            width=400,
-            height=200,
-            margin={'t':0, 'r':10, 'l':10, 'autoexpand':True,},
-            xaxis={'fixedrange':True},
-            yaxis={'fixedrange':True},
-        )
-
-        stdSeries = kpiDF.groupby([thisWeekKPIs['Start Time'].dt.date])[lastWeekMeanSeries.name].std()
-
-        fig.add_trace(
-            plotly.graph_objs.Scatter(
-                x=df['Start Time'],
-                y=df[lastWeekMeanSeries.name],
-                error_y=dict(
-                    type='data',
-                    array=stdSeries,
-                    visible=True)
-                )
-            )
-
-        if len(triggeringCB.keys()) and (list(triggeringCB.keys())[0] == eventName):
-            print(triggeringCB.keys())
-            return fig
-
-        return fig
-
-    return callback
-
-# Cargado del dataframe de donde se va a sacar la data
-def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=30), end_date=datetime.datetime.today()) -> pd.DataFrame:
-    """
-    TODO: Termina de implementarme.
-    Esta funcion hace un query hacia la base de datos para obtener la data que se encuentra dentro del 
-    rango de fechas especificado
-    """
-    root = 'assets/data/'
-    dfs = []
-    for _, _, names in os.walk(root):
-        for name in names:
-            path = root+name
-            dfs.append(pd.read_csv(path))
-
-    df = pd.concat(dfs, ignore_index=True)
-    df['Start Time'] = pd.to_datetime(df['Start Time'])
-    df['IP Pool Usage(%)'] = df['IP Pool Usage(%)'].str.rstrip('%').astype(float)
-    return df[df['Start Time'] > start_date][df['Start Time'] < end_date]
-
-kpiDF = queryDataFromDB()
-
+# Carga de los dataframes de donde se va a obtener la data
+kpiDF = uv.queryDataFromDB()
 thisWeekKPIs = kpiDF.copy(deep=True)
-
-# Implementacion del grafico de las cargas pico de CPU y sus duraciones:
-def figCombinator(columns, argDF:pd.DataFrame=None)->dash.dcc.Graph:
-    if len(columns) > 1:
-        fig = px.scatter(argDF, x="Start Time", y=columns[0], color=columns[1],
-                         title=columns[0], width=1000, height=500)
-        fig.update_coloraxes(
-                colorbar_title={
-                    'side':'right'
-                    })
-        fig.add_traces(plotly.graph_objs.Scatter(x=argDF["Start Time"], y=argDF[columns[0]], mode='line'))
-    else:
-        fig = px.scatter(argDF, x="Start Time", y=columns[0],
-                         title=columns[0], width=1000, height=500)
-
-    fig.update_layout(title_font_size=30)
-
-    return dash.dcc.Graph(figure=fig, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True})
 
 dash.register_page(__name__)
 
@@ -94,10 +20,11 @@ layout = html.Div(children=[
     html.H1(children='xGW Page'),
     dash.dcc.Tabs(id="xGW-tabs", value='basicView', children=[
         dash.dcc.Tab(label='Basic view', value='basicView', children=[
-            dash.html.Div(id='basicTab',children=[
+            dash.html.Div(id='basicTab_xGW',children=[
                 dash.html.Div(className='card_container', children=[
-                    dash.html.Div(id='cpu_card',className='infoCard', children=[
-                        dash.html.H3('CPU Usage (latest measurements)'),
+                    dash.html.Div(id='cpu_card_xGW',className='infoCard', children=[
+                        dash.html.H3('CPU Usage'),
+                        dash.html.H4('Latest measurements'),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
                                 dash.html.Div(children=[
@@ -123,7 +50,7 @@ layout = html.Div(children=[
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
                             dash.html.Div(children=[
-                                dash.html.H5('CPU peak load duration'),
+                                dash.html.H5('CPU peak load duration within this week'),
                                 dbc.ListGroup(children=[
                                     dbc.ListGroupItem('Longest duration of CPU Peak: '+ str(thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].max())+' secs'),
                                     dbc.ListGroupItem('Percentage of longest duration: '+str(thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].argmax()])+"%")
@@ -131,15 +58,15 @@ layout = html.Div(children=[
                             ]),
                             dash.html.Br(),
                             dash.html.Div(children=[
-                                dash.html.H5('Peak load of CPU(%) (weekley summary)'),
-                                dash.dcc.Graph(id='daily_cpu_usage', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
+                                dash.html.H5('Peak load of CPU(%) (week summary)'),
+                                dash.dcc.Graph(id='daily_cpu_usage_xGW', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
                             ], className='figureContainer')
 
                             ], className='infoCardDataContainer')
                     ]),
 
 
-                    dash.html.Div(id='ip_card',className='infoCard', children=[
+                    dash.html.Div(id='ip_card_xGW',className='infoCard', children=[
                         dash.html.H3('IP Usage'),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
@@ -153,17 +80,6 @@ layout = html.Div(children=[
                                         size=100,
                                         ),
                                 ], className='gaugeDiv'),
-                                # dash.html.Div(children=[
-                                #     dash.html.H6('Latest peak load of CPU usage of the main processor(%)'),
-                                #     daq.Gauge(
-                                #         color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                #         value=thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[-1],
-                                #         units='%',
-                                #         max=100,  # TODO: Averiguar cual es el máximo de este KPI
-                                #         min=0,
-                                #         size=100,
-                                #         ),
-                                # ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
                             dash.html.Div(children=[
                                 dash.html.H5('Asigned IP addresses in the PGW'),
@@ -174,8 +90,8 @@ layout = html.Div(children=[
                             ]),
                             dash.html.Br(),
                             dash.html.Div(children=[
-                                dash.html.H5('IP Pool Usage% (weekley summary)'),
-                                dash.dcc.Graph(id='daily_ip_usage', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
+                                dash.html.H5('IP Pool Usage% (week summary)'),
+                                dash.dcc.Graph(id='daily_ip_usage_xGW', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
                             ], className='figureContainer')
 
                             ], className='infoCardDataContainer')
@@ -184,15 +100,15 @@ layout = html.Div(children=[
                     ]),
                 ])
             ]),
-        dash.dcc.Tab(label='Advanced view', value='advancedView', id='advancedTabGraphTab',children=[
-            html.Div(id='advancedTab', children=[
+        dash.dcc.Tab(label='Advanced view', value='advancedView', id='advancedTabGraphTab_xGW',children=[
+            html.Div(id='advancedTab_xGW', children=[
                 html.Div(children=[
                     dash.html.H5('Selected KPIs'),
-                    dash.dcc.Dropdown(options=kpiDF.columns[5:], value=[kpiDF.columns[7]], multi=True, id='kpiSelector', placeholder="Select a KPI"),
+                    dash.dcc.Dropdown(options=kpiDF.columns[5:], value=[kpiDF.columns[7]], multi=True, id='kpiSelector_xGW', placeholder="Select a KPI"),
                     dash.html.Br(),
                     dash.html.H5('Date range selector'),
                     dash.dcc.DatePickerRange(
-                        id='dateRange',
+                        id='dateRange_xGW',
                         min_date_allowed=kpiDF['Start Time'].min() - datetime.timedelta(days=1),
                         max_date_allowed=kpiDF['Start Time'].max() + datetime.timedelta(days=1),
                         initial_visible_month=kpiDF['Start Time'].max(),
@@ -202,7 +118,7 @@ layout = html.Div(children=[
                     dash.html.Br(),
                     dash.html.Div(className='graphsContainer',children=[
                         dash.dcc.Graph(
-                            id='advancedTabGraph',
+                            id='advancedTabGraph_xGW',
                             figure={
                                 'data':[{
                                     'type':'line'
@@ -213,7 +129,7 @@ layout = html.Div(children=[
                                 }
                             ),
                         dash.dcc.Graph(
-                            id='dailyGraph',
+                            id='dailyGraph_xGW',
                             figure={
                                 'data':[{
                                     'type':'line'
@@ -222,9 +138,9 @@ layout = html.Div(children=[
                                 })
                         ]),
                     dash.html.Label('Statistical information'),
-                    dash.dcc.Checklist(options=['std'], id='metricsCheckList', value=[]),
+                    dash.dcc.Checklist(options=['std'], id='metricsCheckList_xGW', value=[]),
                     ]),
-                html.Div(id='statsContainer'),
+                html.Div(id='statsContainer_xGW'),
                 ]),
             ]),
         ]),
@@ -233,14 +149,14 @@ layout = html.Div(children=[
 
 # Refrescado del grafico primario
 @dash.callback(
-        dash.Output('advancedTabGraph', 'figure'),
-        dash.Input('dateRange', 'start_date'),
-        dash.Input('dateRange', 'end_date'),
-        dash.Input('kpiSelector', 'value'),
-        dash.Input('metricsCheckList', 'value')
+        dash.Output('advancedTabGraph_xGW', 'figure'),
+        dash.Input('dateRange_xGW', 'start_date'),
+        dash.Input('dateRange_xGW', 'end_date'),
+        dash.Input('kpiSelector_xGW', 'value'),
+        dash.Input('metricsCheckList_xGW', 'value')
         )
 def dateChange_cb(start_date: datetime.datetime, end_date: datetime.datetime, selector: list, checklistOptions: list):
-    kpiDF = queryDataFromDB(start_date, end_date)
+    kpiDF = uv.queryDataFromDB(start_date, end_date)
     fig = plotly.graph_objs.Figure()
 
     fig.update_layout(title={
@@ -270,10 +186,10 @@ def dateChange_cb(start_date: datetime.datetime, end_date: datetime.datetime, se
 
 # Refrescado del grafico secundario
 @dash.callback(
-        dash.Output('dailyGraph', 'figure'),
-        dash.Input('advancedTabGraph', 'clickData'),
-        dash.State('advancedTabGraph', 'figure'),
-        dash.Input('kpiSelector', 'value'),
+        dash.Output('dailyGraph_xGW', 'figure'),
+        dash.Input('advancedTabGraph_xGW', 'clickData'),
+        dash.State('advancedTabGraph_xGW', 'figure'),
+        dash.Input('kpiSelector_xGW', 'value'),
         )
 def clicked_datapoint_cb(clickData, aggFigure, selector):
     triggeringCB = dash.callback_context.triggered_prop_ids
@@ -286,7 +202,7 @@ def clicked_datapoint_cb(clickData, aggFigure, selector):
         })
 
     try:
-        if list(triggeringCB.keys())[0] == 'advancedTabGraph.clickData':
+        if list(triggeringCB.keys())[0] == 'advancedTabGraph_xGW.clickData':
             dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
         else:
             dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
@@ -305,13 +221,13 @@ def clicked_datapoint_cb(clickData, aggFigure, selector):
 
 # Callbacks para los graficos de las cartas
 dash.callback(
-                dash.Output('daily_cpu_usage', 'figure'),
-                dash.Input('daily_cpu_usage', 'figure'),
-                dash.Input('daily_cpu_usage', 'clickData'),
-                )(basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage.clickData'))
+                dash.Output('daily_cpu_usage_xGW', 'figure'),
+                dash.Input('daily_cpu_usage_xGW', 'figure'),
+                dash.Input('daily_cpu_usage_xGW', 'clickData'),
+                )(uv.basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage.clickData', thisWeekKPIs, kpiDF))
 
 dash.callback(
-                dash.Output('daily_ip_usage', 'figure'),
-                dash.Input('daily_ip_usage', 'figure'),
-                dash.Input('daily_ip_usage', 'clickData'),
-                )(basicViewGraphCBGenerator('IP Pool Usage(%)', 'daily_ip_usage.clickData'))
+                dash.Output('daily_ip_usage_xGW', 'figure'),
+                dash.Input('daily_ip_usage_xGW', 'figure'),
+                dash.Input('daily_ip_usage_xGW', 'clickData'),
+                )(uv.basicViewGraphCBGenerator('IP Pool Usage(%)', 'daily_ip_usage.clickData', thisWeekKPIs, kpiDF))
