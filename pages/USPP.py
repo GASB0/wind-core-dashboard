@@ -94,36 +94,24 @@ layout = html.Div(children=[
             dash.html.Div(id='basicTab',children=[
                 dash.html.Div(className='card_container', children=[
                     
-                    dash.html.Div(id='crm_operation_card',className='infoCard', children=[
+                    dash.html.Div(id='crm_operation_card',className='infoCard', children=[                        
                         dash.html.H3('CRM Operation'),
-                        dash.html.H4('Daily Average'),
-                        dash.html.Div(children=[
-                            dash.html.Div(children=[
-                                daq.Gauge(
-                                    color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                    value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
-                                    showCurrentValue=True,
-                                    units="%",
-                                    label='CRM Operation Success (%)',
-                                    max=100,
-                                    min=0,
-                                    size=200,
-                                ),
-                            ], className='gaugeDiv'),
-                            dash.html.Div(children=[
-                                daq.Gauge(
-                                    color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                    value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
-                                    showCurrentValue=True,
-                                    units="%",
-                                    label='CRM Operation Success (%)',
-                                    max=100,
-                                    min=0,
-                                    size=200,
-                                ),
-                            ], className='gaugeDiv'),
-                        ], className='gaugeContainer'),
-                        
+                        dash.html.H4('Daily Average'),                        
+                        daq.Gauge(
+                            color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                            value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
+                            showCurrentValue=True,
+                            units="%",
+                            label='CRM Operation Success (%)',
+                            max=100,
+                            min=0,
+                            size=200,
+                        ),    
+                        dash.html.H4('Week History'),
+                        dash.dcc.Graph(id='weekly_crm_operation', 
+                                      figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'CRM Operation Success (%)'}}, 
+                                      config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}
+                        ),
                     ]),
 
                     dash.html.Div(id='spr_subs', className='infoCard', children=[
@@ -131,8 +119,7 @@ layout = html.Div(children=[
                         dash.html.H4('Daily Average'),
                         #dash.dcc.Graph(id='daily_ip_usage', figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'Peak load of CPU usage of the main processor(%)'}}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
                         daq.Gauge(
-                           # color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                            #color={"gradient":True},
+                            #color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
                             value=int(kpiDF_USPP['Number of SPR Registered User'].mean()),
                             showCurrentValue=True,
                             units='Users',
@@ -142,79 +129,121 @@ layout = html.Div(children=[
                             size=200,
                         ),
                         spr_subs_kpi_list,
-                        ]),
-                    
-                    dash.html.Div(id='crm_operation_card_hist',className='infoCard', children=[
-                        dash.html.H3('CRM Operation'),
-                        dash.html.H4('Week History'),
-                        dash.dcc.Graph(id='weekly_crm_operation', 
-                                      figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'CRM Operation Success (%)'}}, 
-                                      config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}
-                        ),
-                    ]),
-                    
-                    dash.html.Div(id='spr_users_card_hist',className='infoCard', children=[
-                        dash.html.H3('SPR Users'),
                         dash.html.H4('Week History'),
                         dash.dcc.Graph(id='weekly_spr_users', 
                                       figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'CRM Operation Success (%)'}}, 
                                       config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}
                         ),
-                    ]),
-                    
-                    dash.html.Div(id='spr_subs_card_hist',className='infoCard', children=[
-                        dash.html.H3('SPR Registered Users'),
-                        dash.html.H4('Week History'),
                         dash.dcc.Graph(id='spr_subs', 
                                       figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'CRM Operation Success (%)'}}, 
                                       config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}
                         ),
                     ]),
-                    
                     ])
                 ])
             ]),
-        # dash.dcc.Tab(label='Advanced view', value='advancedView', id='advancedTabGraphTab',children=[
-        #     html.Div(id='advancedTab', children=[
-        #         html.Div(children=[
-        #             dash.dcc.DatePickerRange(
-        #                 id='dateRange',
-        #                 min_date_allowed=kpiDF_USPP['Start Time'].min() - datetime.timedelta(days=1),
-        #                 max_date_allowed=kpiDF_USPP['Start Time'].max() + datetime.timedelta(days=1),
-        #                 initial_visible_month=kpiDF_USPP['Start Time'].max(),
-        #                 start_date=kpiDF_USPP['Start Time'].min().date(),
-        #                 end_date=kpiDF_USPP['Start Time'].max().date() + datetime.timedelta(days=1),
-        #                 ),
-        #             dash.html.Div(className='graphsContainer',children=[
-        #                 dash.dcc.Graph(
-        #                     id='advancedTabGraph',
-        #                     figure={
-        #                         'data':[{
-        #                             'type':'line'
-        #                             }],
-        #                         'layout': {'margin':{'t':50, 'r':0}}
-        #                         }
-        #                     ),
-        #                 dash.dcc.Graph(
-        #                     id='dailyGraph',
-        #                     figure={
-        #                         'data':[{
-        #                             'type':'line'
-        #                             }],
-        #                         'layout': {'margin':{'t':50, 'r':0}}
-        #                         })
-        #                 ]),
-        #             dash.html.Label('Statistical information'),
-        #             dash.dcc.Checklist(options=['std'], id='metricsCheckList', value=[]),
-        #             dash.html.Br(),
-        #             dash.html.Label('KPIs to be selected'),
-        #             dash.dcc.Dropdown(options=kpiDF_USPP.columns[5:], value=[kpiDF_USPP.columns[7]], multi=True, id='kpiSelector', placeholder="Select a KPI"),
-        #             ]),
-        #         html.Div(id='statsContainer'),
-        #         ]),
-        #     ]),
+        
+            dash.dcc.Tab(label='Advanced view', value='advancedView', id='advancedTabGraphTab',children=[
+                html.Div(id='advancedTab', children=[
+                    html.Div(children=[
+                        dash.html.Label('KPIs to be selected'),
+                        dash.dcc.Dropdown(options=kpiDF_USPP.columns[5:], value=[kpiDF_USPP.columns[7]], multi=True, id='kpiSelector', placeholder="Select a KPI"),
+                        dash.html.Br(),
+                        dash.dcc.DatePickerRange(
+                            id='dateRange',
+                            min_date_allowed=kpiDF_USPP['Start Time'].min() - datetime.timedelta(days=1),
+                            max_date_allowed=kpiDF_USPP['Start Time'].max() + datetime.timedelta(days=1),
+                            initial_visible_month=kpiDF_USPP['Start Time'].max(),
+                            start_date=kpiDF_USPP['Start Time'].min().date(),
+                            end_date=kpiDF_USPP['Start Time'].max().date() + datetime.timedelta(days=1),
+                            ),
+                        dash.html.Div(className='graphsContainer',children=[
+                            dash.dcc.Graph(
+                                id='advancedTabGraph_USPP',
+                                figure={
+                                    'data':[{
+                                        'type':'line'
+                                        }],
+                                    'layout': {'margin':{'t':50, 'r':0}}
+                                    }
+                                ),
+                            dash.dcc.Graph(
+                                id='dailyGraph_USPP',
+                                figure={
+                                    'data':[{
+                                        'type':'line'
+                                        }],
+                                    'layout': {'margin':{'t':50, 'r':0}}
+                                    })
+                            ]),
+                        dash.html.Label('Statistical information'),
+                        dash.dcc.Checklist(options=['std'], id='metricsCheckList', value=[]),
+                        ]),
+                    html.Div(id='statsContainer'),
+                    ]),
+                ]),
         ]),
     ])
+
+
+# Refrescado del grafico primario
+@dash.callback(
+        dash.Output('advancedTabGraph_USPP', 'figure'),
+        dash.Input('dateRange', 'start_date'),
+        dash.Input('dateRange', 'end_date'),
+        dash.Input('kpiSelector', 'value'),
+        dash.Input('metricsCheckList', 'value')
+        )
+def dateChange_cb_USPP(start_date, end_date, selector, checklistOptions):
+    kpiDF_USPP = queryDataFromDB_USPP(start_date, end_date)
+    fig = plotly.graph_objs.Figure()
+
+    if len(selector) > 0:
+        for _, value in enumerate(selector):
+            meanSeries = kpiDF_USPP.groupby([kpiDF_USPP['Start Time'].dt.date])[value].mean()
+            varianceSeries = kpiDF_USPP.groupby([kpiDF_USPP['Start Time'].dt.date])[value].std()
+            df = pd.DataFrame({'Start Time':meanSeries.index, meanSeries.name: meanSeries.values, 'variance': varianceSeries.values})
+            
+            fig.add_trace(
+                    plotly.graph_objs.Scatter(
+                        x=df['Start Time'],
+                        y=df[value],
+                        error_y=dict(
+                            type='data',
+                            array=df['variance'],
+                            visible=True) if 'std' in checklistOptions else None
+                        )
+                    )
+    return fig
+
+# Refrescado del grafico secundario
+@dash.callback(
+        dash.Output('dailyGraph_USPP', 'figure'),
+        dash.Input('advancedTabGraph_USPP', 'clickData'),
+        dash.State('advancedTabGraph_USPP', 'figure'),
+        dash.Input('kpiSelector', 'value'),
+        )
+def clicked_datapoint_cb_USPP(clickData, aggFigure, selector):
+    triggeringCB = dash.callback_context.triggered_prop_ids
+    fig = plotly.graph_objs.Figure()
+
+    try:
+        if list(triggeringCB.keys())[0] == 'advancedTabGraph_USPP.clickData':
+            dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
+        else:
+            dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
+    except:
+        return fig
+
+    if selector:
+        filteredDF_USPP = kpiDF_USPP[kpiDF_USPP['Start Time'].apply(lambda x: pd.to_datetime(x).date()) == dateToInspect]
+        for _, value in enumerate(selector):
+            fig.add_trace(plotly.graph_objs.Scatter(
+                x=filteredDF_USPP['Start Time'],
+                y=filteredDF_USPP[value],
+                ))
+
+    return fig
 
 # Callbacks para los graficos de las cartas
 dash.callback(
@@ -234,3 +263,4 @@ dash.callback(
                 dash.Input('spr_subs', 'figure'),
                 dash.Input('spr_subs', 'clickData'),
                 )(basicViewGraphCBGenerator('Number of SPR Subscribers', 'spr_subs.clickData'))
+
