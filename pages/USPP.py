@@ -29,11 +29,18 @@ def basicViewGraphCBGenerator(kpiName, eventName):
             xaxis={'fixedrange':True},
             yaxis={'fixedrange':True},
         )
+        
+        stdSeries = kpiDF_USPP.groupby([thisWeekKPIs_USPP['Start Time'].dt.date])[lastWeekMeanSeries.name].std()
 
         fig.add_trace(
             plotly.graph_objs.Scatter(
                 x=df['Start Time'],
                 y=df[lastWeekMeanSeries.name],
+                error_y=dict(
+                    type='data',
+                    array=stdSeries,
+                    visible=True
+                )
                 )
             )
 
@@ -100,14 +107,14 @@ layout = html.Div(children=[
                         daq.Gauge(
                             color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
                             value=int(kpiDF_USPP['Successful Ratio of BOSS Operation(%)'].mean()),
-                            showCurrentValue=True,
-                            units="%",
+                            # showCurrentValue=True,
+                            # units="%",
                             label='CRM Operation Success (%)',
                             max=100,
                             min=0,
-                            size=200,
+                            size=150,
                         ),    
-                        dash.html.H4('Week History'),
+                        dash.html.H4('Last Week History'),
                         dash.dcc.Graph(id='weekly_crm_operation', 
                                       figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'CRM Operation Success (%)'}}, 
                                       config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}
@@ -121,15 +128,15 @@ layout = html.Div(children=[
                         daq.Gauge(
                             #color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
                             value=int(kpiDF_USPP['Number of SPR Registered User'].mean()),
-                            showCurrentValue=True,
-                            units='Users',
+                            # showCurrentValue=True,
+                            # units='Users',
                             label='SPR Registered Users',
                             max=round(kpiDF_USPP['Number of SPR Subscribers'].mean()),
                             min=0,
-                            size=200,
+                            size=150,
                         ),
                         spr_subs_kpi_list,
-                        dash.html.H4('Week History'),
+                        dash.html.H4('Last Week History'),
                         dash.dcc.Graph(id='weekly_spr_users', 
                                       figure={'layout': {'height': 270, 'width':270, 'margin':{'t':50, 'r':10}, 'title': 'CRM Operation Success (%)'}}, 
                                       config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}
