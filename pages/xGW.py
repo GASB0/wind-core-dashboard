@@ -7,12 +7,12 @@ from dash import html
 import pandas as pd
 import plotly
 
-sys.path.insert(1,'/home/gabriel/Documents/Projects/wind_dashboard/pages')
+sys.path.insert(1,'./pages')
 import utilidadesVarias as uv
 
 # Carga de los dataframes de donde se va a obtener la data
-kpiDF = uv.queryDataFromDB()
-thisWeekKPIs = kpiDF.copy(deep=True)
+kpiDF_xGW = uv.queryDataFromDB()
+thisWeekKPIs = kpiDF_xGW.copy(deep=True)
 
 dash.register_page(__name__)
 
@@ -49,8 +49,10 @@ layout = html.Div(children=[
                                         ),
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
+                                dash.html.Br(),
+                                dash.html.H4('Week summary'),
                             dash.html.Div(children=[
-                                dash.html.H5('CPU peak load duration within this week'),
+                                dash.html.H5('General CPU load'),
                                 dbc.ListGroup(children=[
                                     dbc.ListGroupItem('Longest duration of CPU Peak: '+ str(thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].max())+' secs'),
                                     dbc.ListGroupItem('Percentage of longest duration: '+str(thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].argmax()])+"%")
@@ -58,7 +60,7 @@ layout = html.Div(children=[
                             ]),
                             dash.html.Br(),
                             dash.html.Div(children=[
-                                dash.html.H5('Peak load of CPU(%) (week summary)'),
+                                dash.html.H5('Peak load of CPU(%)'),
                                 dash.dcc.Graph(id='daily_cpu_usage_xGW', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
                             ], className='figureContainer')
 
@@ -81,16 +83,18 @@ layout = html.Div(children=[
                                         ),
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
+                            dash.html.Br(),
+                            dash.html.H4('Week summary'),
                             dash.html.Div(children=[
                                 dash.html.H5('Asigned IP addresses in the PGW'),
                                 dbc.ListGroup(children=[
-                                    dbc.ListGroupItem('Number of assigned IP addresses in the PGW IP pool: '+ str(thisWeekKPIs['Number of assigned IP addresses in the PGW IP pool'].max())),
+                                    dbc.ListGroupItem('Max Number of assigned IP addresses in the PGW IP pool: '+ str(thisWeekKPIs['Number of assigned IP addresses in the PGW IP pool'].max())),
                                     # dbc.ListGroupItem('Percentage of longest duration: '+str(thisWeekKPIs['Peak load of CPU usage of the main processor(%)'].iloc[thisWeekKPIs['Duration of peak load of CPU usage of the main processor(s)'].argmax()])+"%")
                                 ]),
                             ]),
                             dash.html.Br(),
                             dash.html.Div(children=[
-                                dash.html.H5('IP Pool Usage% (week summary)'),
+                                dash.html.H5('IP Pool Usage%'),
                                 dash.dcc.Graph(id='daily_ip_usage_xGW', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
                             ], className='figureContainer')
 
@@ -104,16 +108,16 @@ layout = html.Div(children=[
             html.Div(id='advancedTab_xGW', children=[
                 html.Div(children=[
                     dash.html.H5('Selected KPIs'),
-                    dash.dcc.Dropdown(options=kpiDF.columns[5:], value=[kpiDF.columns[7]], multi=True, id='kpiSelector_xGW', placeholder="Select a KPI"),
+                    dash.dcc.Dropdown(options=kpiDF_xGW.columns[5:], value=[kpiDF_xGW.columns[7]], multi=True, id='kpiSelector_xGW', placeholder="Select a KPI"),
                     dash.html.Br(),
                     dash.html.H5('Date range selector'),
                     dash.dcc.DatePickerRange(
                         id='dateRange_xGW',
-                        min_date_allowed=kpiDF['Start Time'].min() - datetime.timedelta(days=1),
-                        max_date_allowed=kpiDF['Start Time'].max() + datetime.timedelta(days=1),
-                        initial_visible_month=kpiDF['Start Time'].max(),
-                        start_date=kpiDF['Start Time'].min().date(),
-                        end_date=kpiDF['Start Time'].max().date() + datetime.timedelta(days=1),
+                        min_date_allowed=kpiDF_xGW['Start Time'].min() - datetime.timedelta(days=1),
+                        max_date_allowed=kpiDF_xGW['Start Time'].max() + datetime.timedelta(days=1),
+                        initial_visible_month=kpiDF_xGW['Start Time'].max(),
+                        start_date=kpiDF_xGW['Start Time'].min().date(),
+                        end_date=kpiDF_xGW['Start Time'].max().date() + datetime.timedelta(days=1),
                         ),
                     dash.html.Br(),
                     dash.html.Div(className='graphsContainer',children=[
@@ -148,86 +152,33 @@ layout = html.Div(children=[
 
 
 # Refrescado del grafico primario
-@dash.callback(
+dash.callback(
         dash.Output('advancedTabGraph_xGW', 'figure'),
         dash.Input('dateRange_xGW', 'start_date'),
         dash.Input('dateRange_xGW', 'end_date'),
         dash.Input('kpiSelector_xGW', 'value'),
         dash.Input('metricsCheckList_xGW', 'value')
-        )
-def dateChange_cb(start_date: datetime.datetime, end_date: datetime.datetime, selector: list, checklistOptions: list):
-    kpiDF = uv.queryDataFromDB(start_date, end_date)
-    fig = plotly.graph_objs.Figure()
+        )(uv.dateChangeCBGen(kpiDF_xGW))
 
-    fig.update_layout(title={
-        'text':'Averaged view',
-        'font':{
-            'size':35
-            }
-        })
-
-    if len(selector) > 0:
-        for _, value in enumerate(selector):
-            meanSeries = kpiDF.groupby([kpiDF['Start Time'].dt.date])[value].mean()
-            stdSeries = kpiDF.groupby([kpiDF['Start Time'].dt.date])[value].std()
-            df = pd.DataFrame({'Start Time':meanSeries.index, meanSeries.name: meanSeries.values, 'std': stdSeries.values})
-            
-            fig.add_trace(
-                    plotly.graph_objs.Scatter(
-                        x=df['Start Time'],
-                        y=df[value],
-                        error_y=dict(
-                            type='data',
-                            array=df['std'],
-                            visible=True) if 'std' in checklistOptions else None
-                        )
-                    )
-    return fig
-
-# Refrescado del grafico secundario
-@dash.callback(
+## Refrescado del grafico secundario
+dash.callback(
         dash.Output('dailyGraph_xGW', 'figure'),
         dash.Input('advancedTabGraph_xGW', 'clickData'),
         dash.State('advancedTabGraph_xGW', 'figure'),
         dash.Input('kpiSelector_xGW', 'value'),
-        )
-def clicked_datapoint_cb(clickData, aggFigure, selector):
-    triggeringCB = dash.callback_context.triggered_prop_ids
-    fig = plotly.graph_objs.Figure()
-    fig.update_layout(title={
-        'text':'Daily detail',
-        'font':{
-            'size':35
-            }
-        })
-
-    try:
-        if list(triggeringCB.keys())[0] == 'advancedTabGraph_xGW.clickData':
-            dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
-        else:
-            dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
-    except:
-        return fig
-
-    if selector:
-        filteredDF = kpiDF[ kpiDF['Start Time'].apply(lambda x: pd.to_datetime(x).date()) == dateToInspect]
-        for _, value in enumerate(selector):
-            fig.add_trace(plotly.graph_objs.Scatter(
-                x=filteredDF['Start Time'],
-                y=filteredDF[value],
-                ))
-
-    return fig
+        )(uv.clickedDatapointCBGen(kpiDF_xGW, 'advancedTabGraph_xGW.clickData'))
 
 # Callbacks para los graficos de las cartas
+## Tarjeta para el uso de CPU
 dash.callback(
                 dash.Output('daily_cpu_usage_xGW', 'figure'),
                 dash.Input('daily_cpu_usage_xGW', 'figure'),
                 dash.Input('daily_cpu_usage_xGW', 'clickData'),
-                )(uv.basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage.clickData', thisWeekKPIs, kpiDF))
+                )(uv.basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage.clickData', thisWeekKPIs, kpiDF_xGW))
 
+## Tarjeta para el uso de IP
 dash.callback(
                 dash.Output('daily_ip_usage_xGW', 'figure'),
                 dash.Input('daily_ip_usage_xGW', 'figure'),
                 dash.Input('daily_ip_usage_xGW', 'clickData'),
-                )(uv.basicViewGraphCBGenerator('IP Pool Usage(%)', 'daily_ip_usage.clickData', thisWeekKPIs, kpiDF))
+                )(uv.basicViewGraphCBGenerator('IP Pool Usage(%)', 'daily_ip_usage.clickData', thisWeekKPIs, kpiDF_xGW))

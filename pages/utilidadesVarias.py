@@ -37,8 +37,69 @@ def basicViewGraphCBGenerator(kpiName, eventName, thisWeekKPIs, kpiDF):
             )
 
         if len(triggeringCB.keys()) and (list(triggeringCB.keys())[0] == eventName):
-            print(triggeringCB.keys())
             return fig
+
+        return fig
+
+    return callback
+
+def dateChangeCBGen(kpiDF):
+    def callback(start_date: datetime.datetime, end_date: datetime.datetime, selector: list, checklistOptions: list):
+        tempDF = kpiDF[(kpiDF['Start Time'] >= start_date) & (kpiDF['End Time'] < end_date)]
+        fig = plotly.graph_objs.Figure()
+        fig.update_layout(title={
+            'text':'Averaged view',
+            'font':{
+                'size':35
+                }
+            })
+
+        if len(selector) > 0:
+            for _, value in enumerate(selector):
+                meanSeries = tempDF.groupby([tempDF['Start Time'].dt.date])[value].mean()
+                stdSeries = tempDF.groupby([tempDF['Start Time'].dt.date])[value].std()
+                df = pd.DataFrame({'Start Time':meanSeries.index, meanSeries.name: meanSeries.values, 'std': stdSeries.values})
+                print(df.head())        
+                fig.add_trace(
+                        plotly.graph_objs.Scatter(
+                            x=df['Start Time'],
+                            y=df[value],
+                            error_y=dict(
+                                type='data',
+                                array=df['std'],
+                                visible=True) if 'std' in checklistOptions else None
+                            )
+                        )
+
+        return fig
+    return callback
+
+def clickedDatapointCBGen(kpiDF, event):
+    def callback(clickData, aggFigure, selector):
+        triggeringCB = dash.callback_context.triggered_prop_ids
+        fig = plotly.graph_objs.Figure()
+        fig.update_layout(title={
+            'text':'Daily detail',
+            'font':{
+                'size':35
+                }
+            })
+
+        try:
+            if list(triggeringCB.keys())[0] == event:
+                dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
+            else:
+                dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
+        except:
+            return fig
+
+        if selector:
+            filteredDF = kpiDF[ kpiDF['Start Time'].apply(lambda x: pd.to_datetime(x).date()) == dateToInspect]
+            for _, value in enumerate(selector):
+                fig.add_trace(plotly.graph_objs.Scatter(
+                    x=filteredDF['Start Time'],
+                    y=filteredDF[value],
+                    ))
 
         return fig
 

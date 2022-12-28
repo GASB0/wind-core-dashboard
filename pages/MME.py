@@ -7,7 +7,7 @@ import dash_bootstrap_components as dbc
 import datetime
 import plotly
 
-sys.path.insert(1,'/home/gabriel/Documents/Projects/wind_dashboard/pages')
+sys.path.insert(1,'./pages')
 import utilidadesVarias as uv
 
 kpiDF_MME = uv.queryDataFromDB(element='MME')
@@ -51,6 +51,7 @@ layout = html.Div(children=[
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
                             dash.html.Br(),
+                            dash.html.H4('Week summary'),
                             dash.html.Div(children=[
                                 dash.html.H5('Peak load of CPU(%) (week summary)'),
                                 dash.dcc.Graph(id='daily_cpu_usage_MME', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
@@ -98,6 +99,8 @@ layout = html.Div(children=[
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
 
+                            dash.html.Br(),
+                            dash.html.H4('Week summary'),
                             dash.html.Div(children=[
                                 dash.html.H5('Bearer activation/setup time'),
                                 dbc.ListGroup(children=[
@@ -155,6 +158,7 @@ layout = html.Div(children=[
                                 ], className='gaugeContainer'),
 
                             dash.html.Br(),
+                            dash.html.H4('Week summary'),
                             dash.html.Div(children=[
                                 dash.html.H5('Successful rate of EPS attach(%)'),
                                 dash.dcc.Graph(id='daily_eps_usage', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
@@ -213,92 +217,40 @@ layout = html.Div(children=[
     ])
 
 
-# Refrescado del grafico primario
-@dash.callback(
+# Callbacks para el advancedView
+## Refrescado del grafico primario
+dash.callback(
         dash.Output('advancedTabGraph_MME', 'figure'),
         dash.Input('dateRange_MME', 'start_date'),
         dash.Input('dateRange_MME', 'end_date'),
         dash.Input('kpiSelector_MME', 'value'),
         dash.Input('metricsCheckList_MME', 'value')
-        )
-def dateChange_cb(start_date: datetime.datetime, end_date: datetime.datetime, selector: list, checklistOptions: list):
-    kpiDF = uv.queryDataFromDB(start_date, end_date, element='MME')
-    fig = plotly.graph_objs.Figure()
+        )(uv.dateChangeCBGen(kpiDF_MME))
 
-    fig.update_layout(title={
-        'text':'Averaged view',
-        'font':{
-            'size':35
-            }
-        })
-
-    if len(selector) > 0:
-        for _, value in enumerate(selector):
-            meanSeries = kpiDF.groupby([kpiDF['Start Time'].dt.date])[value].mean()
-            stdSeries = kpiDF.groupby([kpiDF['Start Time'].dt.date])[value].std()
-            df = pd.DataFrame({'Start Time':meanSeries.index, meanSeries.name: meanSeries.values, 'std': stdSeries.values})
-            
-            fig.add_trace(
-                    plotly.graph_objs.Scatter(
-                        x=df['Start Time'],
-                        y=df[value],
-                        error_y=dict(
-                            type='data',
-                            array=df['std'],
-                            visible=True) if 'std' in checklistOptions else None
-                        )
-                    )
-    return fig
-
-# Refrescado del grafico secundario
-@dash.callback(
+## Refrescado del grafico secundario
+dash.callback(
         dash.Output('dailyGraph_MME', 'figure'),
         dash.Input('advancedTabGraph_MME', 'clickData'),
         dash.State('advancedTabGraph_MME', 'figure'),
         dash.Input('kpiSelector_MME', 'value'),
-        )
-def clicked_datapoint_cb(clickData, aggFigure, selector):
-    triggeringCB = dash.callback_context.triggered_prop_ids
-    fig = plotly.graph_objs.Figure()
-    fig.update_layout(title={
-        'text':'Daily detail',
-        'font':{
-            'size':35
-            }
-        })
+        )(uv.clickedDatapointCBGen(kpiDF_MME, 'advancedTabGraph_MME.clickData'))
 
-    try:
-        if list(triggeringCB.keys())[0] == 'advancedTabGraph_MME.clickData':
-            dateToInspect = pd.to_datetime(clickData['points'][0]['x']).date()
-        else:
-            dateToInspect = pd.to_datetime(aggFigure['data'][0]['x'][-1]).date()
-    except:
-        return fig
-
-    if selector:
-        filteredDF = kpiDF_MME[ kpiDF_MME['Start Time'].apply(lambda x: pd.to_datetime(x).date()) == dateToInspect]
-        for _, value in enumerate(selector):
-            fig.add_trace(plotly.graph_objs.Scatter(
-                x=filteredDF['Start Time'],
-                y=filteredDF[value],
-                ))
-
-    return fig
-
+# Refrescado del grafico de las tarjetas del basicView
+## Tarjeta para el uso de CPU
 dash.callback(
                 dash.Output('daily_cpu_usage_MME', 'figure'),
                 dash.Input('daily_cpu_usage_MME', 'figure'),
                 dash.Input('daily_cpu_usage_MME', 'clickData'),
                 )(uv.basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage_MME.clickData', thisWeekKPIs_MME, kpiDF_MME))
 
-
+## Tarjeta para el uso de memoria
 dash.callback(
                 dash.Output('daily_bearer_usage', 'figure'),
                 dash.Input('daily_bearer_usage', 'figure'),
                 dash.Input('daily_bearer_usage', 'clickData'),
                 )(uv.basicViewGraphCBGenerator('Successful rate of bearer activation(%)', 'daily_bearer_usage.clickData', thisWeekKPIs_MME, kpiDF_MME))
 
-
+## Tarjeta para el uso de EPS
 dash.callback(
                 dash.Output('daily_eps_usage', 'figure'),
                 dash.Input('daily_eps_usage', 'figure'),
