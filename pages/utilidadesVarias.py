@@ -59,7 +59,6 @@ def dateChangeCBGen(kpiDF):
                 meanSeries = tempDF.groupby([tempDF['Start Time'].dt.date])[value].mean()
                 stdSeries = tempDF.groupby([tempDF['Start Time'].dt.date])[value].std()
                 df = pd.DataFrame({'Start Time':meanSeries.index, meanSeries.name: meanSeries.values, 'std': stdSeries.values})
-                print(df.head())        
                 fig.add_trace(
                         plotly.graph_objs.Scatter(
                             x=df['Start Time'],
