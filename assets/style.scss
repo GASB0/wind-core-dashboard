@@ -126,3 +126,12 @@
   width:35%;
   min-width:15rem;
 }
+
+#homeContent{
+  max-width: 55rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 2rem;
+  gap: 1rem;
+}

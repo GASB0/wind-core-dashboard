@@ -10,50 +10,57 @@ import plotly
 sys.path.insert(1,'./pages')
 import utilidadesVarias as uv
 
-kpiDF_MME = uv.queryDataFromDB(element='MME')
-thisWeekKPIs_MME = kpiDF_MME.copy(deep=True)
+kpiDF_MME = uv.queryDataFromDB(start_date=datetime.datetime(year=2022, month=10, day=1), element='MME')
+thisWeekKPIs_MME = uv.queryDataFromDB(element='MME')
 
-print(kpiDF_MME.columns)
+
 
 dash.register_page(__name__)
 
 layout = html.Div(children=[
     html.H1(children='MME Page'),
+    html.H5(id='latestUpdated_MME'),
     dash.dcc.Tabs(id="MME-tabs", value='basicView', children=[
         dash.dcc.Tab(label='Basic view', value='basicView', children=[
             dash.html.Div(id='basicTab_MME',children=[
+                dash.dcc.Interval(id='interval-component_MME', interval=1000, n_intervals=0),
+                dash.html.Div(id='placeholder', style={'display':'none'}),
                 dash.html.Div(className='card_container', children=[
                     dash.html.Div(id='cpu_card_MME',className='infoCard', children=[
                         dash.html.H3('CPU Usage'),
-                        dash.html.H4('Latest measurements'),
+                        dash.html.H4(f"Latest measurements"),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
                                 dash.html.Div(children=[
                                     dash.html.H6('Mean ratio of the CPU usage(%)'),
                                     daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,4], "yellow":[4,8], "red": [8,10]}},
-                                        value=thisWeekKPIs_MME['Mean ratio of the CPU usage(%)'].iloc[-1],
-                                        max=10,  # TODO: Averiguar cual es el máximo de este KPI
+                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
+                                        # value=thisWeekKPIs_MME['Mean ratio of the CPU usage'].iloc[-1],
+                                        value=0,
+                                        max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='mean_ratio_of_the_CPU_usage',
                                         ),
                                 ], className='gaugeDiv'),
                                 dash.html.Div(children=[
                                     dash.html.H6('Peak load of main processor(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Peak load of CPU usage of the main processor(%)'].iloc[-1],
+                                        # value=thisWeekKPIs_MME['Peak load of CPU usage of the main processor'].iloc[-1],
+                                        value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='peak_load_of_CPU_usage_of_the_main_processor_MME'
                                         ),
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
                             dash.html.Br(),
                             dash.html.H4('Week summary'),
                             dash.html.Div(children=[
-                                dash.html.H5('Peak load of CPU(%) (week summary)'),
+                                dash.html.H5('Peak load of CPU(%)'),
                                 dash.dcc.Graph(id='daily_cpu_usage_MME', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
                             ], className='figureContainer')
 
@@ -62,39 +69,45 @@ layout = html.Div(children=[
 
                     dash.html.Div(id='bearer_card_MME',className='infoCard', children=[
                         dash.html.H3('Bearer Usage'),
-                        dash.html.H4('Latest measurements'),
+                        dash.html.H4(f"Latest measurements"),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
                                 dash.html.Div(children=[
                                     dash.html.H6('Successful rate of bearer activation(%)'),
                                     daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Successful rate of bearer activation(%)'].iloc[-1],
+                                        color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                        # value=thisWeekKPIs_MME['Successful rate of bearer activation'].iloc[-1],
+                                        value=0,
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='successful_rate_of_bearer_activation'
                                         ),
                                 ], className='gaugeDiv'),
                                 dash.html.Div(children=[
                                     dash.html.H6('Successful rate of dedicated bearer activation(%)'),
                                     daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Successful rate of dedicated bearer activation(%)'].iloc[-1],
+                                        color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                        # value=thisWeekKPIs_MME['Successful rate of dedicated bearer activation'].iloc[-1],
+                                        value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='successful_rate_of_dedicated_bearer_activation',
                                         ),
                                 ], className='gaugeDiv'),
                                 dash.html.Div(children=[
                                     dash.html.H6('Successful rate of EPS bearer modification(%)'),
                                     daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Successful rate of EPS bearer modification(%)'].iloc[-1],
+                                        color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                        # value=thisWeekKPIs_MME['Successful rate of EPS bearer modification'].iloc[-1],
+                                        value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='successful_rate_of_EPS_bearer_modification'
                                         ),
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
@@ -104,9 +117,7 @@ layout = html.Div(children=[
                             dash.html.Div(children=[
                                 dash.html.H5('Bearer activation/setup time'),
                                 dbc.ListGroup(children=[
-                                    dbc.ListGroupItem("Mean of bearer activation time(ms): "+str(thisWeekKPIs_MME['Mean of bearer activation time(ms)'].max())),
-                                    dbc.ListGroupItem("Mean of dedicated bearer set-up time(ms): "+str(thisWeekKPIs_MME['Mean of dedicated bearer set-up time(ms)'].max())),
-                                ]),
+                                ], id='bearerInfo_MME'),
                             ]),
 
                             dash.html.Br(),
@@ -120,45 +131,44 @@ layout = html.Div(children=[
 
                     dash.html.Div(id='eps_card_MME',className='infoCard', children=[
                         dash.html.H3('EPS'),
-                        dash.html.H4('Latest measurements'),
+                        dash.html.H4(f"Latest measurements"),
                         dash.html.Div(children=[
                             dash.html.Div(children=[
                                 dash.html.Div(children=[
-                                    dash.html.H6('Successful rate of EPS bearer modification(%)'),
-                                    daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Successful rate of EPS bearer modification(%)'].iloc[-1],
-                                        max=100,  # TODO: Averiguar cual es el máximo de este KPI
-                                        min=0,
-                                        size=100,
-                                        ),
-                                ], className='gaugeDiv'),
-                                dash.html.Div(children=[
                                     dash.html.H6('Successful rate of EPS Paging(%)'),
                                     daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Successful rate of EPS Paging(%)'].iloc[-1],
+                                        color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                        # value=thisWeekKPIs_MME['Successful rate of EPS Paging'].iloc[-1],
+                                        value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='successful_rate_of_EPS_Paging'
                                         ),
                                 ], className='gaugeDiv'),
                                 dash.html.Div(children=[
                                     dash.html.H6('Successful rate of EPS attach(%)'),
                                     daq.Gauge(
-                                        color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        value=thisWeekKPIs_MME['Successful rate of EPS attach(%)'].iloc[-1],
+                                        color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
+                                        # value=thisWeekKPIs_MME['Successful rate of EPS attach'].iloc[-1],
+                                        value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
                                         size=100,
+                                        id='successful_rate_of_EPS_attach'
                                         ),
                                 ], className='gaugeDiv'),
                                 ], className='gaugeContainer'),
 
                             dash.html.Br(),
                             dash.html.H4('Week summary'),
+                            dash.html.Div(children=[
+                                dash.html.H5('Successful rate of EPS Paging(%)'),
+                                dash.dcc.Graph(id='daily_eps_usage_paging', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
+                            ], className='figureContainer'),
+
                             dash.html.Div(children=[
                                 dash.html.H5('Successful rate of EPS attach(%)'),
                                 dash.dcc.Graph(id='daily_eps_usage', figure={}, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True}),
@@ -174,7 +184,7 @@ layout = html.Div(children=[
             html.Div(id='advancedTab_MME', children=[
                 html.Div(children=[
                     dash.html.H5('Selected KPIs'),
-                    dash.dcc.Dropdown(options=kpiDF_MME.columns[5:], value=[kpiDF_MME.columns[7]], multi=True, id='kpiSelector_MME', placeholder="Select a KPI"),
+                    dash.dcc.Dropdown(options=kpiDF_MME.columns[4:-1], value=[kpiDF_MME.columns[-3]], multi=True, id='kpiSelector_MME', placeholder="Select a KPI"),
                     dash.html.Br(),
                     dash.html.H5('Date range selector'),
                     dash.dcc.DatePickerRange(
@@ -182,7 +192,7 @@ layout = html.Div(children=[
                         min_date_allowed=kpiDF_MME['Start Time'].min() - datetime.timedelta(days=1),
                         max_date_allowed=kpiDF_MME['Start Time'].max() + datetime.timedelta(days=1),
                         initial_visible_month=kpiDF_MME['Start Time'].max(),
-                        start_date=kpiDF_MME['Start Time'].min().date(),
+                        start_date=datetime.datetime.today() - datetime.timedelta(days=30),
                         end_date=kpiDF_MME['Start Time'].max().date() + datetime.timedelta(days=1),
                         ),
                     dash.html.Br(),
@@ -216,6 +226,53 @@ layout = html.Div(children=[
         ]),
     ])
 
+# Callbacks para los widgets
+widgetDic = {
+    'mean_ratio_of_the_CPU_usage':'Mean ratio of the CPU usage',
+    'peak_load_of_CPU_usage_of_the_main_processor_MME':'Peak load of CPU usage of the main processor',
+    'successful_rate_of_bearer_activation':'Successful rate of bearer activation',
+    'successful_rate_of_dedicated_bearer_activation':'Successful rate of dedicated bearer activation',
+    'successful_rate_of_EPS_bearer_modification':'Successful rate of EPS bearer modification',
+    'successful_rate_of_EPS_Paging':'Successful rate of EPS Paging',
+    'successful_rate_of_EPS_attach':'Successful rate of EPS attach',
+}
+for index, key in enumerate(widgetDic.keys()):
+    if index == 0:
+        @dash.callback(
+            dash.Output(key, 'value'),
+            dash.Output('latestUpdated_MME', 'children'),
+            dash.Input('MMEMemory', 'data'),
+        )
+        def onDataLoad(kpiData):
+            kpiDF = pd.read_json(kpiData)
+            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+            return kpiDF[widgetDic[key]].iloc[-1], f"Latest updated {kpiDF['Start Time'].iloc[-1]}"
+    else:
+        @dash.callback(
+            dash.Output(key, 'value'),
+            dash.Input('MMEMemory', 'data'),
+        )
+        def onDataLoad(kpiData):
+            kpiDF = pd.read_json(kpiData)
+            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+            return kpiDF[widgetDic[key]].iloc[-1]
+
+# Generacion de los callbacks para las listas
+@dash.callback(
+    dash.Output('bearerInfo_MME', 'children'),
+    dash.Input('MMEMemory', 'data'),
+)
+def bearerInfoList_CB(kpiData):
+    kpiDF = pd.read_json(kpiData)
+    kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+    kpiDF['End Time']= pd.to_datetime(kpiDF['End Time']).dt.tz_localize(None)
+    thisWeekKPIs = kpiDF[kpiDF['Start Time'] >= (datetime.datetime.now() - datetime.timedelta(days=7))]
+    content = []
+
+    content.append(dbc.ListGroupItem("Mean of bearer activation time(ms): " + str(thisWeekKPIs['Mean of bearer activation time'].max())))
+    content.append(dbc.ListGroupItem("Mean of dedicated bearer set-up time(ms): " + str(thisWeekKPIs['Mean of dedicated bearer set-up time'].max())))
+
+    return content
 
 # Callbacks para el advancedView
 ## Refrescado del grafico primario
@@ -224,8 +281,9 @@ dash.callback(
         dash.Input('dateRange_MME', 'start_date'),
         dash.Input('dateRange_MME', 'end_date'),
         dash.Input('kpiSelector_MME', 'value'),
-        dash.Input('metricsCheckList_MME', 'value')
-        )(uv.dateChangeCBGen(kpiDF_MME))
+        dash.Input('metricsCheckList_MME', 'value'),
+        dash.Input('MMEMemory', 'data'),
+        )(uv.dateChangeCBGen())
 
 ## Refrescado del grafico secundario
 dash.callback(
@@ -233,7 +291,8 @@ dash.callback(
         dash.Input('advancedTabGraph_MME', 'clickData'),
         dash.State('advancedTabGraph_MME', 'figure'),
         dash.Input('kpiSelector_MME', 'value'),
-        )(uv.clickedDatapointCBGen(kpiDF_MME, 'advancedTabGraph_MME.clickData'))
+        dash.Input('MMEMemory', 'data'),
+        )(uv.clickedDatapointCBGen('advancedTabGraph_MME.clickData'))
 
 # Refrescado del grafico de las tarjetas del basicView
 ## Tarjeta para el uso de CPU
@@ -241,18 +300,27 @@ dash.callback(
                 dash.Output('daily_cpu_usage_MME', 'figure'),
                 dash.Input('daily_cpu_usage_MME', 'figure'),
                 dash.Input('daily_cpu_usage_MME', 'clickData'),
-                )(uv.basicViewGraphCBGenerator('Peak load of CPU usage of the main processor(%)', 'daily_cpu_usage_MME.clickData', thisWeekKPIs_MME, kpiDF_MME))
+                dash.Input('MMEMemory', 'data'),
+                )(uv.basicViewGraphCBGenerator('Peak load of CPU usage of the main processor', 'daily_cpu_usage_MME.clickData'))
 
 ## Tarjeta para el uso de memoria
 dash.callback(
                 dash.Output('daily_bearer_usage', 'figure'),
                 dash.Input('daily_bearer_usage', 'figure'),
                 dash.Input('daily_bearer_usage', 'clickData'),
-                )(uv.basicViewGraphCBGenerator('Successful rate of bearer activation(%)', 'daily_bearer_usage.clickData', thisWeekKPIs_MME, kpiDF_MME))
+                dash.Input('MMEMemory', 'data'),
+                )(uv.basicViewGraphCBGenerator('Successful rate of bearer activation', 'daily_bearer_usage.clickData'))
 
 ## Tarjeta para el uso de EPS
 dash.callback(
                 dash.Output('daily_eps_usage', 'figure'),
                 dash.Input('daily_eps_usage', 'figure'),
                 dash.Input('daily_eps_usage', 'clickData'),
-                )(uv.basicViewGraphCBGenerator('Successful rate of EPS attach(%)', 'daily_eps_usage.clickData', thisWeekKPIs_MME, kpiDF_MME))
+                dash.Input('MMEMemory', 'data'),
+                )(uv.basicViewGraphCBGenerator('Successful rate of EPS attach', 'daily_eps_usage.clickData'))
+dash.callback(
+                dash.Output('daily_eps_usage_paging', 'figure'),
+                dash.Input('daily_eps_usage_paging', 'figure'),
+                dash.Input('daily_eps_usage_paging', 'clickData'),
+                dash.Input('MMEMemory', 'data'),
+                )(uv.basicViewGraphCBGenerator('Successful rate of EPS Paging', 'daily_eps_usage_paging.clickData'))

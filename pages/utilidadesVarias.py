@@ -4,10 +4,21 @@ import dash
 import plotly.express as px
 import os
 import datetime
+import sys
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import Session
+
+sys.path.insert(1,'C:/Users/Administrator/Documents/Scripts/databaseLoader/')
+import dbLoader
 
 # Generador de callbacks para click sobre tarjetas
-def basicViewGraphCBGenerator(kpiName, eventName, thisWeekKPIs, kpiDF):
-    def callback(_,__):
+def basicViewGraphCBGenerator(kpiName, eventName):
+    def callback(_,__, kpiData):
+        kpiDF = pd.read_json(kpiData)
+        kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+        kpiDF['End Time']= pd.to_datetime(kpiDF['End Time']).dt.tz_localize(None)
+        thisWeekKPIs = kpiDF[kpiDF['Start Time'] >= (datetime.datetime.now() - datetime.timedelta(days=7))]
+
         triggeringCB = dash.callback_context.triggered_prop_ids
 
         fig = plotly.graph_objs.Figure()
@@ -43,8 +54,12 @@ def basicViewGraphCBGenerator(kpiName, eventName, thisWeekKPIs, kpiDF):
 
     return callback
 
-def dateChangeCBGen(kpiDF):
-    def callback(start_date: datetime.datetime, end_date: datetime.datetime, selector: list, checklistOptions: list):
+def dateChangeCBGen():
+    def callback(start_date: datetime.datetime, end_date: datetime.datetime, selector: list, checklistOptions: list, kpiData):
+        kpiDF = pd.read_json(kpiData)
+        kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+        kpiDF['End Time']= pd.to_datetime(kpiDF['End Time']).dt.tz_localize(None)
+
         tempDF = kpiDF[(kpiDF['Start Time'] >= start_date) & (kpiDF['End Time'] < end_date)]
         fig = plotly.graph_objs.Figure()
         fig.update_layout(title={
@@ -73,8 +88,12 @@ def dateChangeCBGen(kpiDF):
         return fig
     return callback
 
-def clickedDatapointCBGen(kpiDF, event):
-    def callback(clickData, aggFigure, selector):
+def clickedDatapointCBGen(event):
+    def callback(clickData, aggFigure, selector, kpiData):
+        kpiDF = pd.read_json(kpiData)
+        kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+        kpiDF['End Time']= pd.to_datetime(kpiDF['End Time']).dt.tz_localize(None)
+
         triggeringCB = dash.callback_context.triggered_prop_ids
         fig = plotly.graph_objs.Figure()
         fig.update_layout(title={
@@ -122,22 +141,33 @@ def figCombinator(columns, argDF=None)->dash.dcc.Graph:
     return dash.dcc.Graph(figure=fig, config={'displayModeBar':False, 'responsive':True, 'scrollZoom': True})
 
 # Cargado del dataframe de donde se va a sacar la data
-def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=30), end_date=datetime.datetime.today(), element='xGW') -> pd.DataFrame:
-    """
-    TODO: Termina de implementarme.
-    Esta funcion hace un query hacia la base de datos para obtener la data que se encuentra dentro del 
-    rango de fechas especificado
-    """
-    root = 'assets/data/'
-    dfs = []
-    for _, _, names in os.walk(root):
-        for name in names:
-            if element in name:
-                dfs.append(pd.read_csv(root+name))
+def queryDataFromDB(start_date=datetime.datetime.today() - datetime.timedelta(days=7), end_date=datetime.datetime.now(), element='xGW') -> pd.DataFrame:
+    # Conexion y preparativos con la base de datos
+    Base = automap_base()
+    Base.prepare(autoload_with=dbLoader.engine, reflect=True)
 
-    df = pd.concat(dfs, ignore_index=True)
-    df['Start Time'] = pd.to_datetime(df['Start Time'])
-    if 'IP Pool Usage(%)' in df.columns:
-        df['IP Pool Usage(%)'] = df['IP Pool Usage(%)'].str.rstrip('%').astype(float)
+    table = ''
 
-    return df[df['Start Time'] > start_date][df['Start Time'] < end_date]
+    for tableName in Base.classes.keys():
+        if element.lower() in tableName:
+            table = Base.classes.get(tableName)
+
+    if table == '':
+        return None
+
+    # Query y generacion del dataframe relevante
+    session = Session(dbLoader.engine)
+    res = session.query(table).filter(table.Start_Time < end_date , table.Start_Time >= start_date)
+    df = pd.read_sql(res.statement, res.session.bind)
+
+    # Correccion del nombre de las columnas
+    df.rename(columns=dict(zip(df.columns, df.columns.map(lambda arg: arg.replace('_', " ")))), inplace=True)
+
+    return df
+
+def queryCallbackGen(element: str):
+    def callback(arg):
+        kpiDF = queryDataFromDB(start_date=datetime.datetime(year=2022, month=10, day=1), element=element)
+        return kpiDF.to_json(orient='records', date_format='iso')
+
+    return callback
