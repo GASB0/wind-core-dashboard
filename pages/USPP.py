@@ -12,7 +12,6 @@ sys.path.insert(1,'./pages')
 import utilidadesVarias as uv
 
 kpiDF_USPP = uv.queryDataFromDB(start_date=datetime.datetime(year=2022, month=10, day=1), element='USPP')
-thisWeekKPIs_USPP = uv.queryDataFromDB(element='USPP')
 
 dash.register_page(__name__)
 
@@ -26,7 +25,7 @@ layout = html.Div(children=[
                     
                     dash.html.Div(id='crm_operation_card',className='infoCard', children=[                        
                         dash.html.H3('CRM Operation'),
-                        dash.html.H4(f"Latest measurements ({thisWeekKPIs_USPP['Start Time'].iloc[-1]})"),
+                        dash.html.H4(f"Latest measurements"),
 
                         dash.html.Div(children=[
                             dash.html.H6('CRM Operation Success'),                        
@@ -48,7 +47,7 @@ layout = html.Div(children=[
 
                     dash.html.Div(id='spr_subs', className='infoCard', children=[
                         dash.html.H3('SPR Registered Users'),
-                        dash.html.H4(f"Latest measurements ({thisWeekKPIs_USPP['Start Time'].iloc[-1]})"),
+                        dash.html.H4(f"Latest measurements"),
 
                         dash.html.Div(children=[
                             dash.html.H6('SPR Registered Users'),
@@ -90,15 +89,13 @@ layout = html.Div(children=[
                 html.Div(id='advancedTab', children=[
                     html.Div(children=[
                         dash.html.Label('KPIs to be selected'),
-                        dash.dcc.Dropdown(options=kpiDF_USPP.columns[4:-1], value=[kpiDF_USPP.columns[-3]], multi=True, id='kpiSelector', placeholder="Select a KPI"),
+                        dash.dcc.Dropdown(multi=True, id='kpiSelector_USPP', placeholder="Select a KPI"),
                         dash.html.Br(),
                         dash.dcc.DatePickerRange(
                             id='dateRange',
-                            min_date_allowed=kpiDF_USPP['Start Time'].min() - datetime.timedelta(days=1),
-                            max_date_allowed=kpiDF_USPP['Start Time'].max() + datetime.timedelta(days=1),
-                            initial_visible_month=kpiDF_USPP['Start Time'].max(),
+                            initial_visible_month=datetime.datetime.now(),
                             start_date=datetime.datetime.today() - datetime.timedelta(days=30),
-                            end_date=kpiDF_USPP['Start Time'].max().date() + datetime.timedelta(days=1),
+                            end_date=datetime.datetime.now().date() + datetime.timedelta(days=1),
                             ),
                         dash.html.Div(className='graphsContainer',children=[
                             dash.dcc.Graph(
@@ -133,26 +130,12 @@ widgetDic = {
     'successful_ratio_of_BOSS_operation':'Successful Ratio of BOSS Operation',
     'number_of_SPR_registered_user':'Number of SPR Registered User',
 }
+
 for index, key in enumerate(widgetDic.keys()):
-    if index == 0:
-        @dash.callback(
-            dash.Output(key, 'value'),
-            dash.Output('latestUpdated_USPP', 'children'),
-            dash.Input('USPPMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1], f"Latest updated {kpiDF['Start Time'].iloc[-1]}"
-    else:
-        @dash.callback(
+        dash.callback(
             dash.Output(key, 'value'),
             dash.Input('USPPMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1]
+        )(uv.widgetCBGen(widgetDic, key))
 
 
 # Generacion de los callbacks para las listas
@@ -175,7 +158,7 @@ dash.callback(
     dash.Output('advancedTabGraph_USPP', 'figure'),
     dash.Input('dateRange', 'start_date'),
     dash.Input('dateRange', 'end_date'),
-    dash.Input('kpiSelector', 'value'),
+    dash.Input('kpiSelector_USPP', 'value'),
     dash.Input('metricsCheckList', 'value'),
     dash.Input('USPPMemory', 'data'),
 )(uv.dateChangeCBGen())
@@ -185,7 +168,7 @@ dash.callback(
     dash.Output('dailyGraph_USPP', 'figure'),
     dash.Input('advancedTabGraph_USPP', 'clickData'),
     dash.State('advancedTabGraph_USPP', 'figure'),
-    dash.Input('kpiSelector', 'value'),
+    dash.Input('kpiSelector_USPP', 'value'),
     dash.Input('USPPMemory', 'data'),
 )(uv.clickedDatapointCBGen('advancedTabGraph_USPP.clickData'))
 
@@ -210,3 +193,9 @@ dash.callback(
     dash.Input('spr_subs', 'clickData'),
     dash.Input('USPPMemory', 'data'),
 )(uv.basicViewGraphCBGenerator('Number of SPR Subscribers', 'spr_subs.clickData'))
+
+dash.callback(
+    dash.Output('kpiSelector_USPP', 'options'),
+    dash.Output('kpiSelector_USPP', 'value'),
+    dash.Input('USPPMemory', 'data'),
+)(uv.selectorValueLoader)

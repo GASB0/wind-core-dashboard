@@ -171,3 +171,22 @@ def queryCallbackGen(element: str):
         return kpiDF.to_json(orient='records', date_format='iso')
 
     return callback
+
+
+def selectorValueLoader(kpiData):
+    kpiDF = pd.read_json(kpiData)
+    kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+    kpiDF['End Time']= pd.to_datetime(kpiDF['End Time']).dt.tz_localize(None)
+
+    options=kpiDF.columns[4:-1]
+    value=[kpiDF.columns[-3]]
+
+    return options, value
+
+def widgetCBGen(widgetDic: dict, key:str):
+    def callback(kpiData):
+        kpiDF = pd.read_json(kpiData)
+        kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
+        return kpiDF[widgetDic[key]].iloc[-1]
+
+    return callback

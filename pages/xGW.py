@@ -28,7 +28,6 @@ layout = html.Div(children=[
                                     dash.html.H6('Mean ratio of the CPU usage of the main processor(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"green":[0,40], "yellow":[40,80], "red": [80,100]}},
-                                        # value=thisWeekKPIs_xGW['Mean ratio of the CPU usage of the main processor'].iloc[-1],
                                         value=0,
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
@@ -194,26 +193,12 @@ widgetDic = {
     'peak_load_of_CPU_usage_of_the_main_processor':'Peak load of CPU usage of the main processor',
     'IP_Pool_Usage':'IP Pool Usage',
 }
+
 for index, key in enumerate(widgetDic.keys()):
-    if index == 0:
-        @dash.callback(
-            dash.Output(key, 'value'),
-            dash.Output('latestUpdated_xGW', 'children'),
-            dash.Input('xGWMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1], f"Latest updated {kpiDF['Start Time'].iloc[-1]}"
-    else:
-        @dash.callback(
+        dash.callback(
             dash.Output(key, 'value'),
             dash.Input('xGWMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1]
+        )(uv.widgetCBGen(widgetDic, key))
 
 # Generacion de los callbacks para las listas
 @dash.callback(
@@ -240,18 +225,8 @@ def otherListCallback(kpiData):
     content = [dbc.ListGroupItem('Max Number of assigned IP addresses in the PGW IP pool: '+ str(thisWeekKPIs['Number of assigned IP addresses in the PGW IP pool'].max()))]
     return content
 
-
-@dash.callback(
+dash.callback(
     dash.Output('kpiSelector_xGW', 'options'),
     dash.Output('kpiSelector_xGW', 'value'),
     dash.Input('xGWMemory', 'data'),
-)
-def selectorValueLoader(kpiData):
-    kpiDF = pd.read_json(kpiData)
-    kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-    kpiDF['End Time']= pd.to_datetime(kpiDF['End Time']).dt.tz_localize(None)
-
-    options=kpiDF.columns[4:-1]
-    value=[kpiDF.columns[-3]]
-
-    return options, value
+)(uv.selectorValueLoader)

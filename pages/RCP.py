@@ -10,10 +10,6 @@ import plotly
 sys.path.insert(1,'./pages')
 import utilidadesVarias as uv
 
-# Carga de los dataframes de donde se va a obtener la data
-kpiDF_RCP = uv.queryDataFromDB(start_date=datetime.datetime(year=2022, month=10, day=1), element='RCP')
-thisWeekKPIs_RCP = uv.queryDataFromDB(element='RCP')
-
 dash.register_page(__name__)
 
 layout = html.Div(children=[
@@ -131,16 +127,14 @@ layout = html.Div(children=[
             html.Div(id='advancedTab_RCP', children=[
                 html.Div(children=[
                     dash.html.H5('Selected KPIs'),
-                    dash.dcc.Dropdown(options=kpiDF_RCP.columns[3:-1], value=[kpiDF_RCP.columns[-3]], multi=True, id='kpiSelector_RCP', placeholder="Select a KPI"),
+                    dash.dcc.Dropdown(multi=True, id='kpiSelector_RCP', placeholder="Select a KPI"),
                     dash.html.Br(),
                     dash.html.H5('Date range selector'),
                     dash.dcc.DatePickerRange(
                         id='dateRange_RCP',
-                        min_date_allowed=kpiDF_RCP['Start Time'].min() - datetime.timedelta(days=1),
-                        max_date_allowed=kpiDF_RCP['Start Time'].max() + datetime.timedelta(days=1),
-                        initial_visible_month=kpiDF_RCP['Start Time'].max(),
+                        initial_visible_month=datetime.datetime.now(),
                         start_date=datetime.datetime.today() - datetime.timedelta(days=30),
-                        end_date=kpiDF_RCP['Start Time'].max().date() + datetime.timedelta(days=1),
+                        end_date=datetime.datetime.now().date() + datetime.timedelta(days=1),
                         ),
                     dash.html.Br(),
                     dash.html.Div(className='graphsContainer',children=[
@@ -180,27 +174,12 @@ widgetDic = {
     'average_memory_utilization':'Average Memory Utilization',
     'peak_memory_utilization':'Peak Memory Utilization'
 }
-for index, key in enumerate(widgetDic.keys()):
-    if index == 0:
-        @dash.callback(
-            dash.Output(key, 'value'),
-            dash.Output('latestUpdated_RCP', 'children'),
-            dash.Input('RCPMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1], f"Latest updated {kpiDF['Start Time'].iloc[-1]}"
-    else:
-        @dash.callback(
-            dash.Output(key, 'value'),
-            dash.Input('RCPMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1]
 
+for index, key in enumerate(widgetDic.keys()):
+        dash.callback(
+            dash.Output(key, 'value'),
+            dash.Input('RCPMemory', 'data'),
+        )(uv.widgetCBGen(widgetDic, key))
 
 # Generacion de los callbacks para las listas
 @dash.callback(
@@ -283,3 +262,9 @@ dash.callback(
     dash.Input('daily_peak_memory_usage_RCP', 'clickData'),
     dash.Input('RCPMemory', 'data'),
     )(uv.basicViewGraphCBGenerator('Peak Memory Utilization', 'daily_peak_memory_usage_RCP.clickData'))
+
+dash.callback(
+    dash.Output('kpiSelector_RCP', 'options'),
+    dash.Output('kpiSelector_RCP', 'value'),
+    dash.Input('RCPMemory', 'data'),
+)(uv.selectorValueLoader)

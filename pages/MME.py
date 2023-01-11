@@ -10,11 +10,6 @@ import plotly
 sys.path.insert(1,'./pages')
 import utilidadesVarias as uv
 
-kpiDF_MME = uv.queryDataFromDB(start_date=datetime.datetime(year=2022, month=10, day=1), element='MME')
-thisWeekKPIs_MME = uv.queryDataFromDB(element='MME')
-
-
-
 dash.register_page(__name__)
 
 layout = html.Div(children=[
@@ -76,7 +71,6 @@ layout = html.Div(children=[
                                     dash.html.H6('Successful rate of bearer activation(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                        # value=thisWeekKPIs_MME['Successful rate of bearer activation'].iloc[-1],
                                         value=0,
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
                                         min=0,
@@ -88,7 +82,6 @@ layout = html.Div(children=[
                                     dash.html.H6('Successful rate of dedicated bearer activation(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                        # value=thisWeekKPIs_MME['Successful rate of dedicated bearer activation'].iloc[-1],
                                         value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
@@ -101,7 +94,6 @@ layout = html.Div(children=[
                                     dash.html.H6('Successful rate of EPS bearer modification(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                        # value=thisWeekKPIs_MME['Successful rate of EPS bearer modification'].iloc[-1],
                                         value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
@@ -138,7 +130,6 @@ layout = html.Div(children=[
                                     dash.html.H6('Successful rate of EPS Paging(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                        # value=thisWeekKPIs_MME['Successful rate of EPS Paging'].iloc[-1],
                                         value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
@@ -151,7 +142,6 @@ layout = html.Div(children=[
                                     dash.html.H6('Successful rate of EPS attach(%)'),
                                     daq.Gauge(
                                         color={"gradient":True, "ranges":{"red":[0,40], "yellow":[40,80], "green": [80,100]}},
-                                        # value=thisWeekKPIs_MME['Successful rate of EPS attach'].iloc[-1],
                                         value=0,
                                         units='%',
                                         max=100,  # TODO: Averiguar cual es el máximo de este KPI
@@ -184,16 +174,14 @@ layout = html.Div(children=[
             html.Div(id='advancedTab_MME', children=[
                 html.Div(children=[
                     dash.html.H5('Selected KPIs'),
-                    dash.dcc.Dropdown(options=kpiDF_MME.columns[4:-1], value=[kpiDF_MME.columns[-3]], multi=True, id='kpiSelector_MME', placeholder="Select a KPI"),
+                    dash.dcc.Dropdown(multi=True, id='kpiSelector_MME', placeholder="Select a KPI"),
                     dash.html.Br(),
                     dash.html.H5('Date range selector'),
                     dash.dcc.DatePickerRange(
                         id='dateRange_MME',
-                        min_date_allowed=kpiDF_MME['Start Time'].min() - datetime.timedelta(days=1),
-                        max_date_allowed=kpiDF_MME['Start Time'].max() + datetime.timedelta(days=1),
-                        initial_visible_month=kpiDF_MME['Start Time'].max(),
+                        initial_visible_month=datetime.datetime.now(),
                         start_date=datetime.datetime.today() - datetime.timedelta(days=30),
-                        end_date=kpiDF_MME['Start Time'].max().date() + datetime.timedelta(days=1),
+                        end_date=datetime.datetime.now().date() + datetime.timedelta(days=1),
                         ),
                     dash.html.Br(),
                     dash.html.Div(className='graphsContainer',children=[
@@ -236,26 +224,12 @@ widgetDic = {
     'successful_rate_of_EPS_Paging':'Successful rate of EPS Paging',
     'successful_rate_of_EPS_attach':'Successful rate of EPS attach',
 }
+
 for index, key in enumerate(widgetDic.keys()):
-    if index == 0:
-        @dash.callback(
-            dash.Output(key, 'value'),
-            dash.Output('latestUpdated_MME', 'children'),
-            dash.Input('MMEMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1], f"Latest updated {kpiDF['Start Time'].iloc[-1]}"
-    else:
-        @dash.callback(
+        dash.callback(
             dash.Output(key, 'value'),
             dash.Input('MMEMemory', 'data'),
-        )
-        def onDataLoad(kpiData):
-            kpiDF = pd.read_json(kpiData)
-            kpiDF['Start Time']= pd.to_datetime(kpiDF['Start Time']).dt.tz_localize(None)
-            return kpiDF[widgetDic[key]].iloc[-1]
+        )(uv.widgetCBGen(widgetDic, key))
 
 # Generacion de los callbacks para las listas
 @dash.callback(
@@ -324,3 +298,9 @@ dash.callback(
                 dash.Input('daily_eps_usage_paging', 'clickData'),
                 dash.Input('MMEMemory', 'data'),
                 )(uv.basicViewGraphCBGenerator('Successful rate of EPS Paging', 'daily_eps_usage_paging.clickData'))
+
+dash.callback(
+    dash.Output('kpiSelector_MME', 'options'),
+    dash.Output('kpiSelector_MME', 'value'),
+    dash.Input('MMEMemory', 'data'),
+)(uv.selectorValueLoader)
